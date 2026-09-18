@@ -1,249 +1,356 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Layer, Rect, Stage, Group, Text, Image } from "react-konva";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Layer, Stage, Group, Text } from "react-konva";
 import type Konva from "konva";
-import useImage from "use-image";
-import { useCanvasStore, Frame } from "@/store/canvasStore";
+import { useCanvasStore, exportHandlerRef } from "@/store/canvasStore";
+import { getTextDimensions } from "@/utils/textUtils";
+import { FrameBackground } from "./nodes/FrameBackground";
+import { TextNode } from "./nodes/TextNode";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 4;
 
-function FrameBackground({ frame, isSelected, zoom }: { frame: Frame; isSelected: boolean; zoom: number }) {
-  const [image] = useImage(frame.backgroundImage || "", 'anonymous');
-  
-  const type = frame.backgroundType || "solid";
-  
-  const baseProps = {
-    width: frame.width,
-    height: frame.height,
-    shadowColor: "black",
-    shadowBlur: isSelected ? 30 : 15,
-    shadowOpacity: isSelected ? 0.3 : 0.1,
-    shadowOffsetY: 5,
-    stroke: isSelected ? "#3b82f6" : undefined,
-    strokeWidth: isSelected ? 4 / zoom : 0,
-  };
-
-  if (type === "image" && frame.backgroundImage) {
-    return (
-      // eslint-disable-next-line jsx-a11y/alt-text
-      <Image
-        {...baseProps}
-        image={image}
-        // Basic cover simulation (would need more complex math for true object-fit: cover)
-      />
-    );
-  }
-
-  if (type === "gradient" && frame.backgroundGradient) {
-    const angle = frame.backgroundGradient.angle;
-    // Simple math for gradient angle start/end points
-    const radians = (angle - 90) * (Math.PI / 180);
-    const length = Math.sqrt(frame.width * frame.width + frame.height * frame.height);
-    const startX = frame.width / 2 - (Math.cos(radians) * length) / 2;
-    const startY = frame.height / 2 - (Math.sin(radians) * length) / 2;
-    const endX = frame.width / 2 + (Math.cos(radians) * length) / 2;
-    const endY = frame.height / 2 + (Math.sin(radians) * length) / 2;
-
-    return (
-      <Rect
-        {...baseProps}
-        fillLinearGradientStartPoint={{ x: startX, y: startY }}
-        fillLinearGradientEndPoint={{ x: endX, y: endY }}
-        fillLinearGradientColorStops={[0, frame.backgroundGradient.colors[0], 1, frame.backgroundGradient.colors[1]]}
-      />
-    );
-  }
-
-  // Default Solid
-  return (
-    <Rect
-      {...baseProps}
-      fill={frame.backgroundColor || "white"}
-    />
-  );
-}
-
 export default function EditorCanvas() {
   const stageRef = useRef<Konva.Stage>(null);
-  
-  const { frames, selectedFrameId, setSelectedFrameId, updateFrame, deleteFrame, canvasBgColor } = useCanvasStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [size, setSize] = useState({
-    width: 0,
-    height: 0,
-  });
-
+  // Stage position/scale stored in STATE for safe rendering
+  const [stageTransform, setStageTransform] = useState({ x: 0, y: 0, scale: 0.15 });
   const [zoom, setZoom] = useState(0.15);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
-  // Resize canvas to parent container
-  useEffect(() => {
-    const updateSize = () => {
-      // Get the parent container instead of window for correct sizing in layout
-      const parent = document.getElementById("canvas-container");
-      if (parent) {
-        setSize({
-          width: parent.offsetWidth,
-          height: parent.offsetHeight,
-        });
-      } else {
-        setSize({
-          width: window.innerWidth,
-          height: window.innerHeight,
-        });
-      }
-    };
+  const {
+    frames, selectedFrameId, selectedTextId,
+    setSelectedFrameId, setSelectedTextId,
+    updateFrame, updateTextElement, deleteFrame,
+    canvasBgColor, exportConfig,
+  } = useCanvasStore();
 
-    updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => {
-      window.removeEventListener("resize", updateSize);
-    };
+  // Auto-grow textarea height (Figma-like)
+  const autoResize = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
   }, []);
 
-  // Keyboard events (Delete/Backspace)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't delete if we are typing in an input or textarea
-      if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "TEXTAREA"
-      ) {
-        return;
-      }
+    if (editingTextId && textareaRef.current) {
+      autoResize();
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [editingTextId, autoResize]);
 
-      if ((e.key === "Backspace" || e.key === "Delete") && selectedFrameId) {
-        deleteFrame(selectedFrameId);
+  // Resize canvas to container
+  useEffect(() => {
+    const update = () => {
+      const el = document.getElementById("canvas-container");
+      if (el) setSize({ width: el.offsetWidth, height: el.offsetHeight });
+      else setSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Export handler
+  useEffect(() => {
+    exportHandlerRef.current = (frameId: string | null) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const { format, scale, quality } = exportConfig;
+      const mimeType = format === "png" ? "image/png" : format === "jpg" ? "image/jpeg" : "image/webp";
+      const ext = format === "jpg" ? "jpeg" : format;
+      const dl = (url: string, name: string) => { const a = document.createElement("a"); a.download = name; a.href = url; a.click(); };
+
+      if (frameId) {
+        const f = frames.find((fr) => fr.id === frameId);
+        if (!f) return;
+        const prev = { s: { x: stage.scaleX(), y: stage.scaleY() }, p: { x: stage.x(), y: stage.y() } };
+        stage.scale({ x: 1, y: 1 }); stage.position({ x: -f.x, y: -f.y }); stage.batchDraw();
+        const url = stage.toDataURL({ mimeType, quality, x: 0, y: 0, width: f.width, height: f.height, pixelRatio: scale });
+        stage.scale(prev.s); stage.position(prev.p); stage.batchDraw();
+        dl(url, `${f.name || "frame"}.${ext}`);
+      } else {
+        const prev = { s: { x: stage.scaleX(), y: stage.scaleY() }, p: { x: stage.x(), y: stage.y() } };
+        stage.scale({ x: 1, y: 1 }); stage.position({ x: 0, y: 0 }); stage.batchDraw();
+        const url = stage.toDataURL({ mimeType, quality, pixelRatio: scale });
+        stage.scale(prev.s); stage.position(prev.p); stage.batchDraw();
+        dl(url, `canvas.${ext}`);
       }
     };
+  }, [frames, exportConfig]);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+  // Keyboard shortcuts (Delete, Undo, Redo)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (editingTextId) return;
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+
+      const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      if (cmdOrCtrl && e.key.toLowerCase() === "z") {
+        if (e.shiftKey) {
+          e.preventDefault();
+          useCanvasStore.getState().redo();
+        } else {
+          e.preventDefault();
+          useCanvasStore.getState().undo();
+        }
+      } else if (cmdOrCtrl && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        useCanvasStore.getState().redo();
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        const s = useCanvasStore.getState();
+        if (s.selectedTextId && s.selectedFrameId) {
+          s.deleteTextElement(s.selectedFrameId, s.selectedTextId);
+          setEditingTextId(null);
+        } else if (s.selectedFrameId) {
+          deleteFrame(s.selectedFrameId);
+        }
+      }
     };
-  }, [selectedFrameId, deleteFrame]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deleteFrame, editingTextId]);
 
+  // Zoom + pan — update stageTransform in state so render can use it safely
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
-
     const stage = stageRef.current;
     if (!stage) return;
 
-    // Zooming with ctrl key
     if (e.evt.ctrlKey || e.evt.metaKey) {
-      const pointer = stage.getPointerPosition();
-      if (!pointer) return;
-
-      const oldScale = stage.scaleX();
-      const scaleBy = 1.1;
-
-      const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-      const limitedScale = Math.min(Math.max(newScale, MIN_ZOOM), MAX_ZOOM);
-
-      const mousePointTo = {
-        x: (pointer.x - stage.x()) / oldScale,
-        y: (pointer.y - stage.y()) / oldScale,
+      const ptr = stage.getPointerPosition();
+      if (!ptr) return;
+      const old = stage.scaleX();
+      const next = Math.min(Math.max(old * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1), MIN_ZOOM), MAX_ZOOM);
+      const newPos = {
+        x: ptr.x - ((ptr.x - stage.x()) / old) * next,
+        y: ptr.y - ((ptr.y - stage.y()) / old) * next,
       };
-
-      const newPosition = {
-        x: pointer.x - mousePointTo.x * limitedScale,
-        y: pointer.y - mousePointTo.y * limitedScale,
-      };
-
-      stage.scale({ x: limitedScale, y: limitedScale });
-      stage.position(newPosition);
-      setZoom(limitedScale);
+      stage.scale({ x: next, y: next });
+      stage.position(newPos);
+      setZoom(next);
+      setStageTransform({ x: newPos.x, y: newPos.y, scale: next });
     } else {
-      // Panning without ctrl key (trackpad / shift+scroll)
-      const dx = e.evt.deltaX;
-      const dy = e.evt.deltaY;
-      
-      stage.position({
-        x: stage.x() - dx,
-        y: stage.y() - dy,
-      });
+      const newPos = { x: stage.x() - e.evt.deltaX, y: stage.y() - e.evt.deltaY };
+      stage.position(newPos);
+      setStageTransform({ x: newPos.x, y: newPos.y, scale: stage.scaleX() });
     }
   };
 
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // If we click on the empty stage (not a shape), deselect
     if (e.target === e.target.getStage()) {
       setSelectedFrameId(null);
+      setSelectedTextId(null);
+      setEditingTextId(null);
     }
   };
 
+  // Update stageTransform when stage is panned by dragging
+  const handleStageDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const stage = e.target as Konva.Stage;
+    setStageTransform({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
+  };
+
+  // ── Inline editor overlay (1:1 Stage-Transformed) ────────────────────────
+  const editingOverlay = (() => {
+    if (!editingTextId) return null;
+    const frame = frames.find((f) => f.id === selectedFrameId);
+    const element = frame?.textElements?.find((t) => t.id === editingTextId);
+    if (!frame || !element) return null;
+
+    const { textHeight } = getTextDimensions(element);
+    const rotation = element.rotation || 0;
+
+    const { x: sx, y: sy, scale } = stageTransform;
+
+    const isBold   = element.fontStyle === "bold"   || element.fontStyle === "bold italic";
+    const isItalic = element.fontStyle === "italic"  || element.fontStyle === "bold italic";
+
+    const centerX = element.width / 2;
+    const centerY = textHeight / 2;
+
+    return (
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 50,
+          overflow: "hidden",
+        }}
+      >
+        {/* Transform layer matching Konva Stage position and zoom */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transform: `translate(${sx}px, ${sy}px) scale(${scale})`,
+            transformOrigin: "0 0",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Frame clipping boundary */}
+          <div
+            style={{
+              position: "absolute",
+              left: frame.x,
+              top: frame.y,
+              width: frame.width,
+              height: frame.height,
+              overflow: "hidden",
+              pointerEvents: "none",
+            }}
+          >
+            {/* Text element 1:1 canvas position & rotation */}
+            <div
+              style={{
+                position: "absolute",
+                left: element.x,
+                top: element.y,
+                width: element.width,
+                transform: rotation ? `rotate(${rotation}deg)` : "none",
+                transformOrigin: `${centerX}px ${centerY}px`,
+                pointerEvents: "none",
+              }}
+            >
+              <textarea
+                key={editingTextId}
+                ref={textareaRef}
+                autoFocus
+                value={element.text}
+                onChange={(ev) => {
+                  updateTextElement(frame.id, element.id, { text: ev.target.value });
+                  autoResize();
+                }}
+                onBlur={() => setEditingTextId(null)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Escape") { ev.preventDefault(); setEditingTextId(null); }
+                }}
+                style={{
+                  boxSizing: "border-box",
+                  width: "100%",
+                  minHeight: element.fontSize * element.lineHeight,
+                  height: "auto",
+                  fontSize: element.fontSize,
+                  fontFamily: element.fontFamily,
+                  fontWeight: element.fontWeight || (isBold ? "bold" : "normal"),
+                  fontStyle: isItalic ? "italic" : "normal",
+                  textDecoration: element.textDecoration || "none",
+                  color: element.fontColor,
+                  textAlign: element.align,
+                  lineHeight: element.lineHeight,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  resize: "none",
+                  overflow: "hidden",
+                  padding: 0,
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                  caretColor: element.fontColor || "#000",
+                  pointerEvents: "all",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })();
+
+  // ── Render ───────────────────────────────────────────────────────────────
   if (size.width === 0 || size.height === 0) {
     return <div id="canvas-container" className="h-full w-full" style={{ backgroundColor: canvasBgColor }} />;
   }
 
   return (
-    <div id="canvas-container" className="h-full w-full overflow-hidden absolute inset-0" style={{ backgroundColor: canvasBgColor }}>
+    <div
+      id="canvas-container"
+      ref={containerRef}
+      className="h-full w-full overflow-hidden absolute inset-0"
+      style={{ backgroundColor: canvasBgColor }}
+    >
       <Stage
         ref={stageRef}
         width={size.width}
         height={size.height}
         onWheel={handleWheel}
         onClick={handleStageClick}
-        draggable={true} // Allow panning by dragging background
+        onDragMove={handleStageDragMove}
+        onDragEnd={handleStageDragMove}
+        draggable={!editingTextId}
         scaleX={zoom}
         scaleY={zoom}
       >
         <Layer>
           {frames.map((frame) => {
-            const isSelected = selectedFrameId === frame.id;
-            
+            const isFrameSelected = selectedFrameId === frame.id && !selectedTextId;
             return (
               <Group
                 key={frame.id}
                 x={frame.x}
                 y={frame.y}
-                // draggable
+                draggable={!editingTextId}
                 onClick={(e) => {
                   e.cancelBubble = true;
                   setSelectedFrameId(frame.id);
+                  setSelectedTextId(null);
+                  setEditingTextId(null);
                 }}
                 onDragEnd={(e) => {
-                  // Only update position on drag end to avoid constant re-renders
-                  updateFrame(frame.id, {
-                    x: e.target.x(),
-                    y: e.target.y(),
-                  });
-                }}
-                onDragMove={() => {
-                  // If it wasn't selected, select it during drag
-                  if (!isSelected) {
-                    setSelectedFrameId(frame.id);
-                  }
+                  updateFrame(frame.id, { x: e.target.x(), y: e.target.y() });
                 }}
               >
-                {/* Frame Name Label */}
+                {/* Frame label */}
                 <Text
-                  text={`${frame.name} - ${frame.width}x${frame.height}`}
+                  text={`${frame.name}   ${frame.width}×${frame.height}`}
                   y={-30}
                   fontSize={24}
                   fill="#888"
+                  listening={false}
                 />
-                
-                {/* Frame Background */}
-                <FrameBackground frame={frame} isSelected={isSelected} zoom={zoom} />
-                
-                {/* Placeholder content for now */}
-                <Text
-                  text={frame.name}
-                  width={frame.width}
-                  height={frame.height}
-                  align="center"
-                  verticalAlign="middle"
-                  fontSize={48}
-                  fill="#ccc"
-                />
+
+                {/* Background */}
+                <FrameBackground frame={frame} isSelected={isFrameSelected} zoom={zoom} />
+
+                {/* Text elements (clipped to frame dimensions like overflow: hidden) */}
+                <Group clipX={0} clipY={0} clipWidth={frame.width} clipHeight={frame.height}>
+                  {(frame.textElements ?? []).map((el) => (
+                    <TextNode
+                      key={el.id}
+                      element={el}
+                      isSelected={selectedTextId === el.id}
+                      isEditing={editingTextId === el.id}
+                      zoom={zoom}
+                      frameId={frame.id}
+                      onEdit={() => setEditingTextId(el.id)}
+                    />
+                  ))}
+                </Group>
               </Group>
             );
           })}
         </Layer>
       </Stage>
 
+      {/* Figma-like inline editing textarea */}
+      {editingOverlay}
+
+      {/* Zoom indicator */}
       <div className="absolute bottom-4 right-4 rounded-md bg-white px-3 py-2 text-sm shadow text-neutral-800 z-10 pointer-events-none">
         {Math.round(zoom * 100)}%
       </div>
