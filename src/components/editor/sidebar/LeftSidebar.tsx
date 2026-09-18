@@ -6,10 +6,10 @@ const FRAME_TEMPLATES = [
   {
     category: "App Store Screenshots",
     items: [
-      { name: "iPhone 6.7\"", width: 1290, height: 2796 },
-      { name: "iPhone 6.5\"", width: 1242, height: 2688 },
-      { name: "iPhone 5.5\"", width: 1242, height: 2208 },
-      { name: "iPad Pro 12.9\"", width: 2048, height: 2732 },
+      { name: 'iPhone 6.7"', width: 1290, height: 2796 },
+      { name: 'iPhone 6.5"', width: 1242, height: 2688 },
+      { name: 'iPhone 5.5"', width: 1242, height: 2208 },
+      { name: 'iPad Pro 12.9"', width: 2048, height: 2732 },
       { name: "Android Phone", width: 1080, height: 2400 },
       { name: "Android Tablet", width: 1600, height: 2560 },
       { name: "Mac", width: 2560, height: 1600 },
@@ -31,20 +31,49 @@ const FRAME_TEMPLATES = [
   },
 ];
 
-export default function LeftSidebar() {
-  const { addFrame, frames, activeLeftTab } = useCanvasStore();
+const TEXT_PRESETS = [
+  { label: "Heading",    fontSize: 120, fontStyle: "bold"   as const, text: "Heading"    },
+  { label: "Subheading", fontSize: 80,  fontStyle: "bold"   as const, text: "Subheading" },
+  { label: "Body",       fontSize: 52,  fontStyle: "normal" as const, text: "Body text"  },
+  { label: "Caption",    fontSize: 36,  fontStyle: "italic" as const, text: "Caption"    },
+];
 
-  const handleAddFrame = (name: string, width: number, height: number, type: 'screenshot' | 'mockup' | 'graphic' | 'custom' = 'screenshot') => {
+export default function LeftSidebar() {
+  const { addFrame, frames, activeLeftTab, selectedFrameId, addTextToFrame, updateTextElement } =
+    useCanvasStore();
+
+  const handleAddFrame = (
+    name: string,
+    width: number,
+    height: number,
+    type: "screenshot" | "mockup" | "graphic" | "custom" = "screenshot"
+  ) => {
     let x = 100;
     let y = 100;
-    
     if (frames.length > 0) {
-      const lastFrame = frames[frames.length - 1];
-      x = lastFrame.x + lastFrame.width + 100;
-      y = lastFrame.y;
+      const last = frames[frames.length - 1];
+      x = last.x + last.width + 100;
+      y = last.y;
     }
-
     addFrame({ name, type, width, height, x, y });
+  };
+
+  const handleAddTextPreset = (preset: (typeof TEXT_PRESETS)[number]) => {
+    if (!selectedFrameId) return;
+    // addTextToFrame adds a default element; we then patch it with preset values
+    const store = useCanvasStore.getState();
+    store.addTextToFrame(selectedFrameId);
+    // After the action the new element will be the last one in the frame
+    const updatedFrames = useCanvasStore.getState().frames;
+    const frame = updatedFrames.find((f) => f.id === selectedFrameId);
+    const newEl = frame?.textElements?.[frame.textElements.length - 1];
+    if (newEl) {
+      store.updateTextElement(selectedFrameId, newEl.id, {
+        text: preset.text,
+        fontSize: preset.fontSize,
+        fontStyle: preset.fontStyle,
+      });
+    }
   };
 
   const renderContent = () => {
@@ -66,14 +95,14 @@ export default function LeftSidebar() {
                     >
                       <span className="font-medium text-neutral-700 text-center">{item.name}</span>
                       <span className="text-neutral-400 mt-1">
-                        {item.width}x{item.height}
+                        {item.width}×{item.height}
                       </span>
                     </button>
                   ))}
                 </div>
               </div>
             ))}
-            
+
             <div>
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">
                 Custom
@@ -87,18 +116,57 @@ export default function LeftSidebar() {
             </div>
           </div>
         );
-      
+
+      case "text":
+        return (
+          <div className="space-y-3">
+            <p className="text-xs text-neutral-500">
+              {selectedFrameId
+                ? "Click a preset to add it to the selected frame."
+                : "Select a frame on the canvas first."}
+            </p>
+
+            {TEXT_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                disabled={!selectedFrameId}
+                onClick={() => handleAddTextPreset(preset)}
+                className={`w-full px-4 py-3 rounded-md border text-left transition-colors ${
+                  selectedFrameId
+                    ? "bg-neutral-50 hover:bg-neutral-100 border-neutral-200 cursor-pointer"
+                    : "bg-neutral-50 border-neutral-100 cursor-not-allowed opacity-50"
+                }`}
+              >
+                <span
+                  className="block text-neutral-800"
+                  style={{
+                    fontSize: `${Math.min(preset.fontSize / 10, 22)}px`,
+                    fontWeight: preset.fontStyle === "bold" ? 700 : 400,
+                    fontStyle: preset.fontStyle === "italic" ? "italic" : "normal",
+                  }}
+                >
+                  {preset.label}
+                </span>
+                <span className="text-xs text-neutral-400 mt-0.5 block">
+                  {preset.fontSize}px · {preset.fontStyle}
+                </span>
+              </button>
+            ))}
+
+            <div className="pt-2 border-t border-neutral-100">
+              <p className="text-xs text-neutral-400">
+                Tip: You can also use the{" "}
+                <span className="font-semibold text-neutral-600">T</span> button in the
+                canvas toolbar to add a text block.
+              </p>
+            </div>
+          </div>
+        );
+
       case "elements":
         return (
           <div className="flex h-full items-center justify-center text-sm text-neutral-400 text-center">
             Elements library coming soon...
-          </div>
-        );
-
-      case "text":
-        return (
-          <div className="flex h-full items-center justify-center text-sm text-neutral-400 text-center">
-            Text elements coming soon...
           </div>
         );
 
@@ -124,14 +192,9 @@ export default function LeftSidebar() {
   return (
     <aside className="w-72 bg-white border-r border-neutral-200 flex flex-col h-full z-10 shadow-sm relative">
       <div className="p-4 border-b border-neutral-200">
-        <h2 className="font-semibold text-neutral-800 capitalize">
-          {activeLeftTab}
-        </h2>
+        <h2 className="font-semibold text-neutral-800 capitalize">{activeLeftTab}</h2>
       </div>
-
-      <div className="flex-1 overflow-y-auto p-4">
-        {renderContent()}
-      </div>
+      <div className="flex-1 overflow-y-auto p-4">{renderContent()}</div>
     </aside>
   );
 }
