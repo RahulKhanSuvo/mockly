@@ -29,7 +29,7 @@ export default function RightSidebar() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1">
                   X
@@ -52,7 +52,7 @@ export default function RightSidebar() {
                   className="w-full px-2 py-1 text-sm border border-neutral-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
-            </div>
+            </div> */}
 
             <div className="grid grid-cols-2 gap-2">
               <div>
