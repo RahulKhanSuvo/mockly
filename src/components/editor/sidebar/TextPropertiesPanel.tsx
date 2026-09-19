@@ -52,7 +52,7 @@ export function TextPropertiesPanel({ frameId, text }: TextPropertiesPanelProps)
             type="color"
             value={text.fontColor}
             onChange={(e) => handleUpdate({ fontColor: e.target.value })}
-            className="w-9 h-9 rounded-md border border-neutral-200 cursor-pointer flex-shrink-0 shadow-sm p-0.5 bg-white"
+            className="w-9 h-9 rounded-md border border-neutral-200 cursor-pointer shrink-0 shadow-sm p-0.5 bg-white"
           />
           <input
             type="text"
