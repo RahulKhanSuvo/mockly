@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { Group, Circle, Rect } from "react-konva";
 import type Konva from "konva";
 import { useCanvasStore, TextElement } from "@/store/canvasStore";
