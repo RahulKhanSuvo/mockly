@@ -18,11 +18,11 @@ export function FrameBackground({ frame, isSelected, zoom }: FrameBackgroundProp
     width: frame.width,
     height: frame.height,
     shadowColor: "black",
-    shadowBlur: isSelected ? 30 : 15,
+    shadowBlur: isSelected ? 20 : 15,
     shadowOpacity: isSelected ? 0.3 : 0.1,
     shadowOffsetY: 5,
     stroke: isSelected ? "#3b82f6" : undefined,
-    strokeWidth: isSelected ? 4 / zoom : 0,
+    strokeWidth: isSelected ? 2 / zoom : 0,
   };
 
   if (type === "image" && frame.backgroundImage) {
