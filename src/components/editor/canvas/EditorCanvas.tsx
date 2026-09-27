@@ -17,16 +17,26 @@ export default function EditorCanvas() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Stage position/scale stored in STATE for safe rendering
-  const [stageTransform, setStageTransform] = useState({ x: 0, y: 0, scale: 0.15 });
+  const [stageTransform, setStageTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 0.15,
+  });
   const [zoom, setZoom] = useState(0.15);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   const {
-    frames, selectedFrameId, selectedTextId,
-    setSelectedFrameId, setSelectedTextId,
-    updateFrame, updateTextElement, deleteFrame,
-    canvasBgColor, exportConfig,
+    frames,
+    selectedFrameId,
+    selectedTextId,
+    setSelectedFrameId,
+    setSelectedTextId,
+    updateFrame,
+    updateTextElement,
+    deleteFrame,
+    canvasBgColor,
+    exportConfig,
   } = useCanvasStore();
 
   // Auto-grow textarea height (Figma-like)
@@ -63,23 +73,55 @@ export default function EditorCanvas() {
       const stage = stageRef.current;
       if (!stage) return;
       const { format, scale, quality } = exportConfig;
-      const mimeType = format === "png" ? "image/png" : format === "jpg" ? "image/jpeg" : "image/webp";
+      const mimeType =
+        format === "png"
+          ? "image/png"
+          : format === "jpg"
+            ? "image/jpeg"
+            : "image/webp";
       const ext = format === "jpg" ? "jpeg" : format;
-      const dl = (url: string, name: string) => { const a = document.createElement("a"); a.download = name; a.href = url; a.click(); };
+      const dl = (url: string, name: string) => {
+        const a = document.createElement("a");
+        a.download = name;
+        a.href = url;
+        a.click();
+      };
 
       if (frameId) {
         const f = frames.find((fr) => fr.id === frameId);
         if (!f) return;
-        const prev = { s: { x: stage.scaleX(), y: stage.scaleY() }, p: { x: stage.x(), y: stage.y() } };
-        stage.scale({ x: 1, y: 1 }); stage.position({ x: -f.x, y: -f.y }); stage.batchDraw();
-        const url = stage.toDataURL({ mimeType, quality, x: 0, y: 0, width: f.width, height: f.height, pixelRatio: scale });
-        stage.scale(prev.s); stage.position(prev.p); stage.batchDraw();
+        const prev = {
+          s: { x: stage.scaleX(), y: stage.scaleY() },
+          p: { x: stage.x(), y: stage.y() },
+        };
+        stage.scale({ x: 1, y: 1 });
+        stage.position({ x: -f.x, y: -f.y });
+        stage.batchDraw();
+        const url = stage.toDataURL({
+          mimeType,
+          quality,
+          x: 0,
+          y: 0,
+          width: f.width,
+          height: f.height,
+          pixelRatio: scale,
+        });
+        stage.scale(prev.s);
+        stage.position(prev.p);
+        stage.batchDraw();
         dl(url, `${f.name || "frame"}.${ext}`);
       } else {
-        const prev = { s: { x: stage.scaleX(), y: stage.scaleY() }, p: { x: stage.x(), y: stage.y() } };
-        stage.scale({ x: 1, y: 1 }); stage.position({ x: 0, y: 0 }); stage.batchDraw();
+        const prev = {
+          s: { x: stage.scaleX(), y: stage.scaleY() },
+          p: { x: stage.x(), y: stage.y() },
+        };
+        stage.scale({ x: 1, y: 1 });
+        stage.position({ x: 0, y: 0 });
+        stage.batchDraw();
         const url = stage.toDataURL({ mimeType, quality, pixelRatio: scale });
-        stage.scale(prev.s); stage.position(prev.p); stage.batchDraw();
+        stage.scale(prev.s);
+        stage.position(prev.p);
+        stage.batchDraw();
         dl(url, `canvas.${ext}`);
       }
     };
@@ -89,9 +131,15 @@ export default function EditorCanvas() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editingTextId) return;
-      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      )
+        return;
 
-      const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+      const isMac =
+        typeof navigator !== "undefined" &&
+        /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
       if (cmdOrCtrl && e.key.toLowerCase() === "z") {
@@ -129,7 +177,10 @@ export default function EditorCanvas() {
       const ptr = stage.getPointerPosition();
       if (!ptr) return;
       const old = stage.scaleX();
-      const next = Math.min(Math.max(old * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1), MIN_ZOOM), MAX_ZOOM);
+      const next = Math.min(
+        Math.max(old * (e.evt.deltaY < 0 ? 1.1 : 1 / 1.1), MIN_ZOOM),
+        MAX_ZOOM,
+      );
       const newPos = {
         x: ptr.x - ((ptr.x - stage.x()) / old) * next,
         y: ptr.y - ((ptr.y - stage.y()) / old) * next,
@@ -139,7 +190,10 @@ export default function EditorCanvas() {
       setZoom(next);
       setStageTransform({ x: newPos.x, y: newPos.y, scale: next });
     } else {
-      const newPos = { x: stage.x() - e.evt.deltaX, y: stage.y() - e.evt.deltaY };
+      const newPos = {
+        x: stage.x() - e.evt.deltaX,
+        y: stage.y() - e.evt.deltaY,
+      };
       stage.position(newPos);
       setStageTransform({ x: newPos.x, y: newPos.y, scale: stage.scaleX() });
     }
@@ -171,8 +225,10 @@ export default function EditorCanvas() {
 
     const { x: sx, y: sy, scale } = stageTransform;
 
-    const isBold   = element.fontStyle === "bold"   || element.fontStyle === "bold italic";
-    const isItalic = element.fontStyle === "italic"  || element.fontStyle === "bold italic";
+    const isBold =
+      element.fontStyle === "bold" || element.fontStyle === "bold italic";
+    const isItalic =
+      element.fontStyle === "italic" || element.fontStyle === "bold italic";
 
     const centerX = element.width / 2;
     const centerY = textHeight / 2;
@@ -231,12 +287,17 @@ export default function EditorCanvas() {
                 autoFocus
                 value={element.text}
                 onChange={(ev) => {
-                  updateTextElement(frame.id, element.id, { text: ev.target.value });
+                  updateTextElement(frame.id, element.id, {
+                    text: ev.target.value,
+                  });
                   autoResize();
                 }}
                 onBlur={() => setEditingTextId(null)}
                 onKeyDown={(ev) => {
-                  if (ev.key === "Escape") { ev.preventDefault(); setEditingTextId(null); }
+                  if (ev.key === "Escape") {
+                    ev.preventDefault();
+                    setEditingTextId(null);
+                  }
                 }}
                 style={{
                   boxSizing: "border-box",
@@ -245,7 +306,8 @@ export default function EditorCanvas() {
                   height: "auto",
                   fontSize: element.fontSize,
                   fontFamily: element.fontFamily,
-                  fontWeight: element.fontWeight || (isBold ? "bold" : "normal"),
+                  fontWeight:
+                    element.fontWeight || (isBold ? "bold" : "normal"),
                   fontStyle: isItalic ? "italic" : "normal",
                   textDecoration: element.textDecoration || "none",
                   color: element.fontColor,
@@ -274,7 +336,13 @@ export default function EditorCanvas() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (size.width === 0 || size.height === 0) {
-    return <div id="canvas-container" className="h-full w-full" style={{ backgroundColor: canvasBgColor }} />;
+    return (
+      <div
+        id="canvas-container"
+        className="h-full w-full"
+        style={{ backgroundColor: canvasBgColor }}
+      />
+    );
   }
 
   return (
@@ -298,7 +366,8 @@ export default function EditorCanvas() {
       >
         <Layer>
           {frames.map((frame) => {
-            const isFrameSelected = selectedFrameId === frame.id && !selectedTextId;
+            const isFrameSelected =
+              selectedFrameId === frame.id && !selectedTextId;
             return (
               <Group
                 key={frame.id}
@@ -325,10 +394,19 @@ export default function EditorCanvas() {
                 />
 
                 {/* Background */}
-                <FrameBackground frame={frame} isSelected={isFrameSelected} zoom={zoom} />
+                <FrameBackground
+                  frame={frame}
+                  isSelected={isFrameSelected}
+                  zoom={zoom}
+                />
 
                 {/* Text elements (clipped to frame dimensions like overflow: hidden) */}
-                <Group clipX={0} clipY={0} clipWidth={frame.width} clipHeight={frame.height}>
+                <Group
+                  clipX={0}
+                  clipY={0}
+                  clipWidth={frame.width}
+                  clipHeight={frame.height}
+                >
                   {(frame.textElements ?? []).map((el) => (
                     <TextNode
                       key={el.id}
