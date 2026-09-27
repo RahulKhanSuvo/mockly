@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ScreenMapping } from '@/types/mockup';
+
 export type FrameType = 'screenshot' | 'mockup' | 'graphic' | 'custom';
 export type BackgroundType = 'solid' | 'gradient' | 'image';
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
@@ -33,6 +35,9 @@ export interface Frame {
   y: number;
   width: number;
   height: number;
+  mockupId?: string;
+  screenshotUrl?: string;
+  customScreen?: ScreenMapping;
   backgroundType?: BackgroundType;
   backgroundColor?: string;
   backgroundGradient?: {
@@ -63,6 +68,7 @@ interface CanvasState {
   activeLeftTab: LeftTab;
   canvasBgColor: string;
   exportConfig: ExportConfig;
+  calibratingMockupId: string | null;
 
   past: Frame[][];
   future: Frame[][];
@@ -85,6 +91,8 @@ interface CanvasState {
   setActiveLeftTab: (tab: LeftTab) => void;
   setCanvasBgColor: (color: string) => void;
   setExportConfig: (config: Partial<ExportConfig>) => void;
+  setCalibratingMockupId: (id: string | null) => void;
+  setFrameScreenshot: (frameId: string, screenshotUrl: string) => void;
 }
 
 const pushHistory = (state: CanvasState): Partial<CanvasState> => {
@@ -236,10 +244,20 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       selectedTextId: null,
     })),
 
+  calibratingMockupId: null,
+
   setSelectedTextId: (id) => set({ selectedTextId: id }),
 
   setActiveLeftTab: (tab) => set({ activeLeftTab: tab }),
   setCanvasBgColor: (color) => set({ canvasBgColor: color }),
   setExportConfig: (config) =>
     set((state) => ({ exportConfig: { ...state.exportConfig, ...config } })),
+  setCalibratingMockupId: (id) => set({ calibratingMockupId: id }),
+  setFrameScreenshot: (frameId, screenshotUrl) =>
+    set((state) => ({
+      ...pushHistory(state),
+      frames: state.frames.map((f) =>
+        f.id === frameId ? { ...f, screenshotUrl } : f
+      ),
+    })),
 }));
