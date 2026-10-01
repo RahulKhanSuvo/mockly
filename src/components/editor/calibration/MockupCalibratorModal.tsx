@@ -53,6 +53,7 @@ export default function MockupCalibratorModal({
   const [activeCorner, setActiveCorner] = useState<keyof ScreenMapping | null>(
     null,
   );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [customAssetUrl, setCustomAssetUrl] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<HTMLImageElement | null>(
     null,
