@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Stage,
   Layer,
@@ -48,46 +48,34 @@ export default function MockupCalibratorModal({
   mockup,
   onSave,
 }: MockupCalibratorModalProps) {
+  const [prevMockup, setPrevMockup] = useState(mockup);
   const [screen, setScreen] = useState<ScreenMapping>(mockup.screen);
+
+  if (prevMockup !== mockup) {
+    setPrevMockup(mockup);
+    setScreen(mockup.screen);
+  }
+
   const [copied, setCopied] = useState(false);
   const [activeCorner, setActiveCorner] = useState<keyof ScreenMapping | null>(
     null,
   );
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [customAssetUrl, setCustomAssetUrl] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<HTMLImageElement | null>(
-    null,
-  );
-  const [warpedCanvas, setWarpedCanvas] = useState<HTMLCanvasElement | null>(
-    null,
-  );
 
   const assetPath = customAssetUrl || mockup.assetUrl;
   const [mockupImg] = useImage(assetPath);
+  const [previewImage] = useImage(SAMPLE_SCREENSHOT_URL, "anonymous");
 
-  // Load sample screenshot for real-time warped preview
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = SAMPLE_SCREENSHOT_URL;
-    img.onload = () => setPreviewImage(img);
-  }, []);
-
-  // Reset screen state when mockup changes
-  useEffect(() => {
-    setScreen(mockup.screen);
-  }, [mockup]);
-
-  // Re-render perspective screenshot offscreen whenever screen points change
-  useEffect(() => {
-    if (!previewImage) return;
-    const canvas = renderPerspectiveScreenshot(
+  // Re-render perspective screenshot offscreen whenever screen points or image change
+  const warpedCanvas = useMemo(() => {
+    if (!previewImage) return null;
+    return renderPerspectiveScreenshot(
       previewImage,
       screen,
       mockup.width,
       mockup.height,
     );
-    setWarpedCanvas(canvas);
   }, [previewImage, screen, mockup.width, mockup.height]);
 
   if (!isOpen) return null;
