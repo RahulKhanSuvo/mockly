@@ -39,7 +39,7 @@ const TEXT_PRESETS = [
 ];
 
 export default function LeftSidebar() {
-  const { addFrame, frames, activeLeftTab, selectedFrameId, addTextToFrame, updateTextElement } =
+  const { addFrame, frames, activeLeftTab, selectedFrameId } =
     useCanvasStore();
 
   const handleAddFrame = (
