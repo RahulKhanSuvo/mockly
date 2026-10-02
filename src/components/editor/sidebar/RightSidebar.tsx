@@ -50,7 +50,7 @@ export default function RightSidebar() {
                   type="color"
                   value={canvasBgColor}
                   onChange={(e) => setCanvasBgColor(e.target.value)}
-                  className="w-9 h-9 rounded-md border border-neutral-200 cursor-pointer flex-shrink-0 shadow-sm p-0.5 bg-white"
+                  className="w-9 h-9 rounded-md border border-neutral-200 cursor-pointer shrink-0 shadow-sm p-0.5 bg-white"
                 />
                 <input
                   type="text"
