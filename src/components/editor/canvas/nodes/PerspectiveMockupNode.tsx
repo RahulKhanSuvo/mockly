@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Group, Image as KonvaImage, Rect } from "react-konva";
 import useImage from "use-image";
 import { Frame } from "@/store/canvasStore";
@@ -18,34 +18,18 @@ export function PerspectiveMockupNode({ frame, isSelected }: PerspectiveMockupNo
   const screenMapping = frame.customScreen || mockupAsset.screen;
 
   const [frameImg] = useImage(mockupAsset.assetUrl);
-  const [screenshotImg, setScreenshotImg] = useState<HTMLImageElement | null>(null);
-  const [warpedCanvas, setWarpedCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [screenshotImg] = useImage(frame.screenshotUrl || "", "anonymous");
 
-  // Load screenshot image when screenshotUrl changes
-  useEffect(() => {
-    if (!frame.screenshotUrl) {
-      setScreenshotImg(null);
-      setWarpedCanvas(null);
-      return;
-    }
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = frame.screenshotUrl;
-    img.onload = () => setScreenshotImg(img);
-  }, [frame.screenshotUrl]);
-
-  // Re-render perspective screenshot offscreen canvas
-  useEffect(() => {
-    if (!screenshotImg) return;
-    const canvas = renderPerspectiveScreenshot(
+  // Render perspective screenshot offscreen canvas when screenshotImg or frame parameters change
+  const warpedCanvas = useMemo(() => {
+    if (!screenshotImg || !frame.screenshotUrl) return null;
+    return renderPerspectiveScreenshot(
       screenshotImg,
       screenMapping,
       frame.width,
       frame.height
     );
-    setWarpedCanvas(canvas);
-  }, [screenshotImg, screenMapping, frame.width, frame.height]);
+  }, [screenshotImg, frame.screenshotUrl, screenMapping, frame.width, frame.height]);
 
   return (
     <Group>
