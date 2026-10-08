@@ -10,7 +10,11 @@ interface FrameBackgroundProps {
   zoom: number;
 }
 
-export function FrameBackground({ frame, isSelected, zoom }: FrameBackgroundProps) {
+export function FrameBackground({
+  frame,
+  isSelected,
+  zoom,
+}: FrameBackgroundProps) {
   const [image] = useImage(frame.backgroundImage || "", "anonymous");
   const type = frame.backgroundType || "solid";
 
@@ -18,10 +22,10 @@ export function FrameBackground({ frame, isSelected, zoom }: FrameBackgroundProp
     width: frame.width,
     height: frame.height,
     shadowColor: "black",
-    shadowBlur: isSelected ? 20 : 15,
+    shadowBlur: isSelected ? 5 : 2,
     shadowOpacity: isSelected ? 0.3 : 0.1,
     shadowOffsetY: 5,
-    stroke: isSelected ? "#3b82f6" : undefined,
+    stroke: isSelected ? "#0084ff" : undefined,
     strokeWidth: isSelected ? 2 / zoom : 0,
   };
 
@@ -38,9 +42,20 @@ export function FrameBackground({ frame, isSelected, zoom }: FrameBackgroundProp
     return (
       <Rect
         {...base}
-        fillLinearGradientStartPoint={{ x: cx - (Math.cos(rad) * len) / 2, y: cy - (Math.sin(rad) * len) / 2 }}
-        fillLinearGradientEndPoint={{   x: cx + (Math.cos(rad) * len) / 2, y: cy + (Math.sin(rad) * len) / 2 }}
-        fillLinearGradientColorStops={[0, frame.backgroundGradient.colors[0], 1, frame.backgroundGradient.colors[1]]}
+        fillLinearGradientStartPoint={{
+          x: cx - (Math.cos(rad) * len) / 2,
+          y: cy - (Math.sin(rad) * len) / 2,
+        }}
+        fillLinearGradientEndPoint={{
+          x: cx + (Math.cos(rad) * len) / 2,
+          y: cy + (Math.sin(rad) * len) / 2,
+        }}
+        fillLinearGradientColorStops={[
+          0,
+          frame.backgroundGradient.colors[0],
+          1,
+          frame.backgroundGradient.colors[1],
+        ]}
       />
     );
   }
