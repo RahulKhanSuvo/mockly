@@ -1,6 +1,7 @@
 "use client";
 
 import { useCanvasStore } from "@/store/canvasStore";
+import { ImagesPanel } from "./ImagesPanel";
 
 
 
@@ -109,11 +110,7 @@ export default function LeftSidebar() {
         );
 
       case "images":
-        return (
-          <div className="flex h-full items-center justify-center text-sm text-neutral-400 text-center">
-            Image uploads coming soon...
-          </div>
-        );
+        return <ImagesPanel />;
 
       case "background":
         return (
