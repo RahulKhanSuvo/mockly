@@ -3,6 +3,51 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { ScreenMapping } from '@/types/mockup';
 
+// ── Canvas-type presets ────────────────────────────────────────────────────────
+// One entry per FrameType. Defines how many frames to create and at what size.
+export type ProjectCanvasType = 'screenshot' | 'mockup' | 'graphic' | 'custom';
+
+interface CanvasPresetFrame { name: string; width: number; height: number; type: FrameType; }
+
+const CANVAS_PRESETS: Record<ProjectCanvasType, { frames: CanvasPresetFrame[]; gap: number; bgColor: string }> = {
+  screenshot: {
+    bgColor: '#e5e5e5',
+    gap: 120,
+    frames: [
+      { name: 'iPhone 6.7" · Screen 1', width: 1290, height: 2796, type: 'screenshot' },
+      { name: 'iPhone 6.7" · Screen 2', width: 1290, height: 2796, type: 'screenshot' },
+      { name: 'iPhone 6.7" · Screen 3', width: 1290, height: 2796, type: 'screenshot' },
+      { name: 'iPhone 6.7" · Screen 4', width: 1290, height: 2796, type: 'screenshot' },
+      { name: 'iPhone 6.7" · Screen 5', width: 1290, height: 2796, type: 'screenshot' },
+    ],
+  },
+  mockup: {
+    bgColor: '#d4d4d4',
+    gap: 160,
+    frames: [
+      { name: 'Mockup · Frame 1', width: 1920, height: 1080, type: 'mockup' },
+      { name: 'Mockup · Frame 2', width: 1920, height: 1080, type: 'mockup' },
+      { name: 'Mockup · Frame 3', width: 1920, height: 1080, type: 'mockup' },
+    ],
+  },
+  graphic: {
+    bgColor: '#e0e0e0',
+    gap: 140,
+    frames: [
+      { name: 'Banner · 1200×628', width: 1200, height: 628, type: 'graphic' },
+      { name: 'Square · 1080×1080', width: 1080, height: 1080, type: 'graphic' },
+      { name: 'Story · 1080×1920', width: 1080, height: 1920, type: 'graphic' },
+    ],
+  },
+  custom: {
+    bgColor: '#e8e8e8',
+    gap: 120,
+    frames: [
+      { name: 'Custom · Frame 1', width: 1920, height: 1080, type: 'custom' },
+    ],
+  },
+};
+
 export type FrameType = 'screenshot' | 'mockup' | 'graphic' | 'custom';
 export type BackgroundType = 'solid' | 'gradient' | 'image';
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
@@ -93,6 +138,7 @@ interface CanvasState {
   setExportConfig: (config: Partial<ExportConfig>) => void;
   setCalibratingMockupId: (id: string | null) => void;
   setFrameScreenshot: (frameId: string, screenshotUrl: string) => void;
+  initializeFromType: (type: ProjectCanvasType) => void;
 }
 
 const pushHistory = (state: CanvasState): Partial<CanvasState> => {
@@ -108,11 +154,11 @@ const pushHistory = (state: CanvasState): Partial<CanvasState> => {
 
 export const useCanvasStore = create<CanvasState>((set) => ({
   frames: [
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone - Screen 1', x: 100,  y: 100, width: 1290, height: 2796, textElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone - Screen 2', x: 1500, y: 100, width: 1290, height: 2796, textElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone - Screen 3', x: 2900, y: 100, width: 1290, height: 2796, textElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone - Screen 4', x: 4300, y: 100, width: 1290, height: 2796, textElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone - Screen 5', x: 5700, y: 100, width: 1290, height: 2796, textElements: [] },
+    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 1', x: 100,  y: 100, width: 1290, height: 2796, textElements: [] },
+    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 2', x: 1510, y: 100, width: 1290, height: 2796, textElements: [] },
+    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 3', x: 2920, y: 100, width: 1290, height: 2796, textElements: [] },
+    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 4', x: 4330, y: 100, width: 1290, height: 2796, textElements: [] },
+    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 5', x: 5740, y: 100, width: 1290, height: 2796, textElements: [] },
   ],
   selectedFrameId: null,
   selectedTextId: null,
@@ -260,4 +306,36 @@ export const useCanvasStore = create<CanvasState>((set) => ({
         f.id === frameId ? { ...f, screenshotUrl } : f
       ),
     })),
+
+  // ── Initialize canvas from a project type preset ───────────────────────────
+  initializeFromType: (type) =>
+    set(() => {
+      const preset = CANVAS_PRESETS[type];
+      const { gap } = preset;
+      let cursor = 100;
+      const frames: Frame[] = preset.frames.map((pf) => {
+        const frame: Frame = {
+          id: uuidv4(),
+          type: pf.type,
+          name: pf.name,
+          x: cursor,
+          y: 100,
+          width: pf.width,
+          height: pf.height,
+          textElements: [],
+        };
+        cursor += pf.width + gap;
+        return frame;
+      });
+      return {
+        frames,
+        canvasBgColor: preset.bgColor,
+        selectedFrameId: null,
+        selectedTextId: null,
+        past: [],
+        future: [],
+        canUndo: false,
+        canRedo: false,
+      };
+    }),
 }));
