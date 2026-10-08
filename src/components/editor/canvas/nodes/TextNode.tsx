@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Group, Rect, Text } from "react-konva";
+import type Konva from "konva";
 import { useCanvasStore, TextElement } from "@/store/canvasStore";
 import { getTextDimensions } from "@/utils/textUtils";
 import { WidthHandle } from "../handles/WidthHandle";
@@ -15,6 +16,7 @@ interface TextNodeProps {
   zoom: number;
   frameId: string;
   onEdit: () => void;
+  onEditEnd: () => void;
 }
 
 export function TextNode({
@@ -24,10 +26,12 @@ export function TextNode({
   zoom,
   frameId,
   onEdit,
+  onEditEnd,
 }: TextNodeProps) {
   const { updateTextElement, setSelectedTextId, setSelectedFrameId } = useCanvasStore();
   const [isHovered, setIsHovered] = useState(false);
   const isDraggingRef = useRef(false);
+  const textRef = useRef<Konva.Text>(null);
   const { textHeight } = getTextDimensions(element);
   const rotation = element.rotation || 0;
 
@@ -38,6 +42,76 @@ export function TextNode({
   const groupY = rotation === 0 ? element.y : element.y + centerY;
   const groupOffsetX = rotation === 0 ? 0 : centerX;
   const groupOffsetY = rotation === 0 ? 0 : centerY;
+
+  // ── Text editing — mirrors the reference App exactly ─────────────────────
+  // Use imperative DOM injection (no React isEditing state).
+  // textNode.hide()  → inject <input> over it
+  // finish()         → textNode.show() + remove <input>
+  const handleDblClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    e.cancelBubble = true;
+    if (isDraggingRef.current) return;
+
+    const textNode = textRef.current;
+    if (!textNode) return;
+
+    // 1. Hide the Konva text node (imperative — no React re-render needed)
+    textNode.hide();
+    textNode.getLayer()?.batchDraw();
+
+    // 2. Measure position in screen space (same as reference)
+    const pos = textNode.absolutePosition();
+    const scale = textNode.getAbsoluteScale();
+    const stage = textNode.getStage();
+    const box = stage?.container().getBoundingClientRect();
+    if (!box) { textNode.show(); return; }
+
+    // 3. Create the <input> exactly like the reference
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = textNode.text();
+    input.style.cssText = [
+      `position:fixed`,
+      `top:${box.top + pos.y}px`,
+      `left:${box.left + pos.x}px`,
+      `width:${element.width * Math.abs(scale.x)}px`,
+      `font-size:${element.fontSize * Math.abs(scale.y)}px`,
+      `font-family:${element.fontFamily}`,
+      `text-align:${element.align}`,
+      `font-weight:${element.fontWeight || (element.fontStyle?.includes("bold") ? "bold" : "normal")}`,
+      `font-style:${element.fontStyle?.includes("italic") ? "italic" : "normal"}`,
+      `color:${element.fontColor}`,
+      `border:2px solid #00a3ff`,
+      `border-radius:4px`,
+      `padding:2px 4px`,
+      `box-sizing:border-box`,
+      `outline:none`,
+      `z-index:9999`,
+      `background:#fff`,
+    ].join(";");
+
+    document.body.appendChild(input);
+    input.focus();
+    input.select();
+
+    // 4. finish() — restore Konva node, remove <input>, notify parent
+    const finish = () => {
+      const newText = input.value;
+      updateTextElement(frameId, element.id, { text: newText });
+      textNode.show();
+      textNode.getLayer()?.batchDraw();
+      onEditEnd();
+      if (document.body.contains(input)) document.body.removeChild(input);
+    };
+
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); finish(); }
+      if (ev.key === "Escape") { ev.preventDefault(); finish(); }
+    });
+    input.addEventListener("blur", finish);
+
+    // 5. Notify parent that editing started (so canvas drag is disabled)
+    onEdit();
+  };
 
   return (
     <Group
@@ -59,12 +133,10 @@ export function TextNode({
           const newY = rotation === 0 ? e.target.y() : e.target.y() - centerY;
           updateTextElement(frameId, element.id, { x: newX, y: newY });
         }
-        setTimeout(() => {
-          isDraggingRef.current = false;
-        }, 50);
+        setTimeout(() => { isDraggingRef.current = false; }, 50);
       }}
     >
-      {/* Solid blue border — identical for both hover and selection states */}
+      {/* Selection / hover border */}
       {(isSelected || isHovered) && (
         <Rect
           x={0}
@@ -78,23 +150,20 @@ export function TextNode({
         />
       )}
 
-      {/* Right edge width handle (pill) */}
-      {isSelected && (
+      {/* Handles — hidden while DOM input is open */}
+      {isSelected && !isEditing && (
         <WidthHandle element={element} frameId={frameId} zoom={zoom} />
       )}
-
-      {/* Bottom-right corner resize handle (circle) */}
-      {isSelected && (
+      {isSelected && !isEditing && (
         <ResizeHandle element={element} frameId={frameId} zoom={zoom} />
       )}
-
-      {/* Rotation handle */}
-      {isSelected && (
+      {isSelected && !isEditing && (
         <RotateHandle element={element} frameId={frameId} zoom={zoom} />
       )}
 
-      {/* Konva text node — hidden while textarea overlay is active */}
+      {/* Konva Text — hidden imperatively while DOM input is active */}
       <Text
+        ref={textRef}
         x={0}
         y={0}
         text={element.text}
@@ -103,14 +172,13 @@ export function TextNode({
         fontFamily={element.fontFamily}
         fill={element.fontColor}
         fontStyle={
-          (element.fontStyle?.includes("italic")
+          element.fontStyle?.includes("italic")
             ? `${element.fontWeight || (element.fontStyle?.includes("bold") ? "bold" : "normal")} italic`
-            : element.fontWeight || element.fontStyle || "normal")
+            : element.fontWeight || element.fontStyle || "normal"
         }
         textDecoration={element.textDecoration || ""}
         align={element.align}
         lineHeight={element.lineHeight}
-        visible={!isEditing}
         onMouseEnter={(e) => {
           setIsHovered(true);
           const stage = e.target.getStage();
@@ -125,10 +193,9 @@ export function TextNode({
           e.cancelBubble = true;
           setSelectedFrameId(frameId);
           setSelectedTextId(element.id);
-          if (!isDraggingRef.current) {
-            onEdit();
-          }
         }}
+        onDblClick={handleDblClick}
+        onDblTap={handleDblClick}
       />
     </Group>
   );
