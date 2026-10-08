@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layer, Stage, Group, Text } from "react-konva";
 import type Konva from "konva";
 import { useCanvasStore, exportHandlerRef } from "@/store/canvasStore";
-import { getTextDimensions } from "@/utils/textUtils";
 import { FrameBackground } from "./nodes/FrameBackground";
 import { TextNode } from "./nodes/TextNode";
 
@@ -14,14 +13,7 @@ const MAX_ZOOM = 4;
 export default function EditorCanvas() {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Stage position/scale stored in STATE for safe rendering
-  const [stageTransform, setStageTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 0.15,
-  });
   const [zoom, setZoom] = useState(0.15);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -33,27 +25,10 @@ export default function EditorCanvas() {
     setSelectedFrameId,
     setSelectedTextId,
     updateFrame,
-    updateTextElement,
     deleteFrame,
     canvasBgColor,
     exportConfig,
   } = useCanvasStore();
-
-  // Auto-grow textarea height (Figma-like)
-  const autoResize = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = ta.scrollHeight + "px";
-  }, []);
-
-  useEffect(() => {
-    if (editingTextId && textareaRef.current) {
-      autoResize();
-      textareaRef.current.focus();
-      textareaRef.current.select();
-    }
-  }, [editingTextId, autoResize]);
 
   // Resize canvas to container
   useEffect(() => {
@@ -167,7 +142,7 @@ export default function EditorCanvas() {
     return () => window.removeEventListener("keydown", onKey);
   }, [deleteFrame, editingTextId]);
 
-  // Zoom + pan — update stageTransform in state so render can use it safely
+  // Zoom + pan
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
@@ -188,14 +163,12 @@ export default function EditorCanvas() {
       stage.scale({ x: next, y: next });
       stage.position(newPos);
       setZoom(next);
-      setStageTransform({ x: newPos.x, y: newPos.y, scale: next });
     } else {
       const newPos = {
         x: stage.x() - e.evt.deltaX,
         y: stage.y() - e.evt.deltaY,
       };
       stage.position(newPos);
-      setStageTransform({ x: newPos.x, y: newPos.y, scale: stage.scaleX() });
     }
   };
 
@@ -207,132 +180,9 @@ export default function EditorCanvas() {
     }
   };
 
-  // Update stageTransform when stage is panned by dragging
-  const handleStageDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const stage = e.target as Konva.Stage;
-    setStageTransform({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
+  const handleStageDragMove = (_e: Konva.KonvaEventObject<DragEvent>) => {
+    // no-op: stage drag position is read directly from the Konva node when needed
   };
-
-  // ── Inline editor overlay (1:1 Stage-Transformed) ────────────────────────
-  const editingOverlay = (() => {
-    if (!editingTextId) return null;
-    const frame = frames.find((f) => f.id === selectedFrameId);
-    const element = frame?.textElements?.find((t) => t.id === editingTextId);
-    if (!frame || !element) return null;
-
-    const { textHeight } = getTextDimensions(element);
-    const rotation = element.rotation || 0;
-
-    const { x: sx, y: sy, scale } = stageTransform;
-
-    const isBold =
-      element.fontStyle === "bold" || element.fontStyle === "bold italic";
-    const isItalic =
-      element.fontStyle === "italic" || element.fontStyle === "bold italic";
-
-    const centerX = element.width / 2;
-    const centerY = textHeight / 2;
-
-    return (
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          zIndex: 50,
-          overflow: "hidden",
-        }}
-      >
-        {/* Transform layer matching Konva Stage position and zoom */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            transform: `translate(${sx}px, ${sy}px) scale(${scale})`,
-            transformOrigin: "0 0",
-            pointerEvents: "none",
-          }}
-        >
-          {/* Frame clipping boundary */}
-          <div
-            style={{
-              position: "absolute",
-              left: frame.x,
-              top: frame.y,
-              width: frame.width,
-              height: frame.height,
-              overflow: "hidden",
-              pointerEvents: "none",
-            }}
-          >
-            {/* Text element 1:1 canvas position & rotation */}
-            <div
-              style={{
-                position: "absolute",
-                left: element.x,
-                top: element.y,
-                width: element.width,
-                transform: rotation ? `rotate(${rotation}deg)` : "none",
-                transformOrigin: `${centerX}px ${centerY}px`,
-                pointerEvents: "none",
-              }}
-            >
-              <textarea
-                key={editingTextId}
-                ref={textareaRef}
-                autoFocus
-                value={element.text}
-                onChange={(ev) => {
-                  updateTextElement(frame.id, element.id, {
-                    text: ev.target.value,
-                  });
-                  autoResize();
-                }}
-                onBlur={() => setEditingTextId(null)}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Escape") {
-                    ev.preventDefault();
-                    setEditingTextId(null);
-                  }
-                }}
-                style={{
-                  boxSizing: "border-box",
-                  width: "100%",
-                  minHeight: element.fontSize * element.lineHeight,
-                  height: "auto",
-                  fontSize: element.fontSize,
-                  fontFamily: element.fontFamily,
-                  fontWeight:
-                    element.fontWeight || (isBold ? "bold" : "normal"),
-                  fontStyle: isItalic ? "italic" : "normal",
-                  textDecoration: element.textDecoration || "none",
-                  color: element.fontColor,
-                  textAlign: element.align,
-                  lineHeight: element.lineHeight,
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  resize: "none",
-                  overflow: "hidden",
-                  padding: 0,
-                  margin: 0,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  overflowWrap: "break-word",
-                  caretColor: element.fontColor || "#000",
-                  pointerEvents: "all",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  })();
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (size.width === 0 || size.height === 0) {
@@ -416,6 +266,7 @@ export default function EditorCanvas() {
                       zoom={zoom}
                       frameId={frame.id}
                       onEdit={() => setEditingTextId(el.id)}
+                      onEditEnd={() => setEditingTextId(null)}
                     />
                   ))}
                 </Group>
@@ -424,9 +275,6 @@ export default function EditorCanvas() {
           })}
         </Layer>
       </Stage>
-
-      {/* Figma-like inline editing textarea */}
-      {editingOverlay}
 
       {/* Zoom indicator */}
       <div className="absolute bottom-4 right-4 rounded-md bg-white px-3 py-2 text-sm shadow text-neutral-800 z-10 pointer-events-none">
