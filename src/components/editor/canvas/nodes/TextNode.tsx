@@ -13,191 +13,365 @@ interface TextNodeProps {
   frameId: string;
   onEdit: () => void;
   onEditEnd: () => void;
-  /** Called with the underlying Konva.Text node once it mounts */
+
   onMount?: (id: string, node: Konva.Text) => void;
-  /** Called when this node unmounts so refs can be cleaned up */
   onUnmount?: (id: string) => void;
 }
 
 export function TextNode({
   element,
-  isSelected,
   isEditing,
-  zoom,
   frameId,
   onEdit,
   onEditEnd,
   onMount,
   onUnmount,
 }: TextNodeProps) {
-  const { updateTextElement, setSelectedTextId, setSelectedFrameId } = useCanvasStore();
+  const { updateTextElement, setSelectedTextId, setSelectedFrameId } =
+    useCanvasStore();
+
   const isDraggingRef = useRef(false);
   const textRef = useRef<Konva.Text>(null);
 
-  // Register / unregister the Konva node ref so EditorCanvas can attach the
-  // shared Transformer in the unclipped selection Layer.
+  // ---------------------------------------------------------------------------
+  // Register / unregister Konva node
+  // ---------------------------------------------------------------------------
+
   useEffect(() => {
     if (textRef.current) {
       onMount?.(element.id, textRef.current);
     }
+
     return () => {
       onUnmount?.(element.id);
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [element.id]);
 
-  // ── Drag & Transform Handlers ─────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Drag
+  // ---------------------------------------------------------------------------
+
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
+
     updateTextElement(frameId, element.id, {
       x: e.target.x(),
       y: e.target.y(),
     });
+
     setTimeout(() => {
       isDraggingRef.current = false;
     }, 50);
   };
 
+  // ---------------------------------------------------------------------------
+  // Transform
+  // ---------------------------------------------------------------------------
+
   const handleTransformEnd = () => {
     const node = textRef.current;
+
     if (!node) return;
 
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
+
     const averageScale = (scaleX + scaleY) / 2;
 
-    // Reset scale to 1 and bake into width & fontSize to keep state clean
+    // Bake Konva scale into our actual text properties.
     node.scaleX(1);
     node.scaleY(1);
 
     updateTextElement(frameId, element.id, {
       x: node.x(),
       y: node.y(),
+
       width: Math.max(20, Math.round(node.width() * scaleX)),
+
       fontSize: Math.max(8, Math.round(element.fontSize * averageScale)),
+
       rotation: node.rotation(),
     });
   };
 
-  // ── Text editing — DOM input overlay ──────────────────────────────────────
-  const handleDblClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+  // ---------------------------------------------------------------------------
+  // Double click → edit text
+  // ---------------------------------------------------------------------------
+
+  const handleDblClick = (
+    e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+  ) => {
     e.cancelBubble = true;
+
     if (isDraggingRef.current) return;
 
     const textNode = textRef.current;
-    if (!textNode) return;
+    const stage = textNode?.getStage();
 
-    textNode.hide();
-    textNode.getLayer()?.batchDraw();
+    if (!textNode || !stage) return;
 
-    const pos = textNode.absolutePosition();
-    const scale = textNode.getAbsoluteScale();
-    const stage = textNode.getStage();
-    const box = stage?.container().getBoundingClientRect();
-    if (!box) {
-      textNode.show();
-      return;
-    }
+    const stageContainer = stage.container();
+    const stageRect = stageContainer.getBoundingClientRect();
 
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = textNode.text();
-    input.style.cssText = [
-      `position:fixed`,
-      `top:${box.top + pos.y}px`,
-      `left:${box.left + pos.x}px`,
-      `width:${element.width * Math.abs(scale.x)}px`,
-      `font-size:${element.fontSize * Math.abs(scale.y)}px`,
-      `font-family:${element.fontFamily}`,
-      `text-align:${element.align}`,
-      `font-weight:${element.fontWeight || (element.fontStyle?.includes("bold") ? "bold" : "normal")}`,
-      `font-style:${element.fontStyle?.includes("italic") ? "italic" : "normal"}`,
-      `color:${element.fontColor}`,
-      `border:2px solid #0084ff`,
-      `border-radius:4px`,
-      `padding:2px 4px`,
-      `box-sizing:border-box`,
-      `outline:none`,
-      `z-index:9999`,
-      `background:#fff`,
-    ].join(";");
+    // -------------------------------------------------------------------------
+    // Get actual rendered position.
+    //
+    // This accounts for:
+    // - canvas zoom
+    // - frame position
+    // - text position
+    // - parent transforms
+    // -------------------------------------------------------------------------
 
-    document.body.appendChild(input);
-    input.focus();
-    input.select();
+    const absolutePosition = textNode.absolutePosition();
+
+    const absoluteScale = textNode.getAbsoluteScale();
+
+    const scaleX = Math.abs(absoluteScale.x);
+
+    const scaleY = Math.abs(absoluteScale.y);
+
+    const width = textNode.width() * scaleX;
+
+    const height = textNode.height() * scaleY;
+
+    // -------------------------------------------------------------------------
+    // Create transparent editing textarea.
+    //
+    // IMPORTANT:
+    // This has NO visible border and NO background.
+    //
+    // The Konva Transformer remains the visual selection UI.
+    // -------------------------------------------------------------------------
+
+    const textarea = document.createElement("textarea");
+
+    textarea.value = textNode.text();
+
+    Object.assign(textarea.style, {
+      position: "fixed",
+
+      left: `${stageRect.left + absolutePosition.x}px`,
+
+      top: `${stageRect.top + absolutePosition.y}px`,
+
+      width: `${width}px`,
+      height: `${height}px`,
+
+      margin: "0",
+      padding: "0",
+
+      border: "none",
+      outline: "none",
+
+      background: "transparent",
+
+      resize: "none",
+      overflow: "hidden",
+
+      boxSizing: "border-box",
+
+      zIndex: "9999",
+
+      color: element.fontColor,
+
+      fontFamily: element.fontFamily,
+
+      fontSize: `${element.fontSize * scaleY}px`,
+
+      fontWeight:
+        element.fontWeight ||
+        (element.fontStyle?.includes("bold") ? "bold" : "normal"),
+
+      fontStyle: element.fontStyle?.includes("italic") ? "italic" : "normal",
+
+      textDecoration: element.textDecoration || "none",
+
+      textAlign: element.align,
+
+      lineHeight: `${element.lineHeight}`,
+
+      // This makes rotated text editing follow
+      // the exact same rotation as the Konva text.
+      transformOrigin: "top left",
+
+      transform: `rotate(${textNode.rotation()}deg)`,
+
+      appearance: "none",
+      WebkitAppearance: "none",
+    });
+
+    document.body.appendChild(textarea);
+
+    textarea.focus();
+    textarea.select();
+
+    onEdit();
+
+    // -------------------------------------------------------------------------
+    // Finish editing
+    // -------------------------------------------------------------------------
+
+    let finished = false;
 
     const finish = () => {
-      const newText = input.value;
-      updateTextElement(frameId, element.id, { text: newText });
-      textNode.show();
-      textNode.getLayer()?.batchDraw();
+      if (finished) return;
+
+      finished = true;
+
+      const newText = textarea.value;
+
+      updateTextElement(frameId, element.id, {
+        text: newText,
+      });
+
+      if (document.body.contains(textarea)) {
+        textarea.remove();
+      }
+
       onEditEnd();
-      if (document.body.contains(input)) document.body.removeChild(input);
+
+      textNode.getLayer()?.batchDraw();
     };
 
-    input.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
+    // -------------------------------------------------------------------------
+    // Keyboard
+    // -------------------------------------------------------------------------
+
+    textarea.addEventListener("keydown", (event) => {
+      // Enter → finish
+      if (event.key === "Enter") {
+        event.preventDefault();
         finish();
+        return;
       }
-      if (ev.key === "Escape") {
-        ev.preventDefault();
+
+      // Escape → finish
+      if (event.key === "Escape") {
+        event.preventDefault();
         finish();
       }
     });
-    input.addEventListener("blur", finish);
 
-    onEdit();
+    // Clicking outside → finish
+    textarea.addEventListener("blur", finish);
   };
+
+  // ---------------------------------------------------------------------------
+  // Konva Text
+  // ---------------------------------------------------------------------------
 
   return (
     <KonvaText
       ref={textRef}
+
       x={element.x}
       y={element.y}
+
       text={element.text}
+
       width={element.width}
+
       fontSize={element.fontSize}
+
       fontFamily={element.fontFamily}
+
       fill={element.fontColor}
+
       fontStyle={
         element.fontStyle?.includes("italic")
-          ? `${element.fontWeight || (element.fontStyle?.includes("bold") ? "bold" : "normal")} italic`
+          ? `${
+              element.fontWeight ||
+              (element.fontStyle?.includes("bold") ? "bold" : "normal")
+            } italic`
           : element.fontWeight || element.fontStyle || "normal"
       }
+
       textDecoration={element.textDecoration || ""}
+
       align={element.align}
+
       lineHeight={element.lineHeight}
+
       rotation={element.rotation || 0}
+
       draggable={!isEditing}
+
+      // -----------------------------------------------------------------------
+      // Drag start
+      // -----------------------------------------------------------------------
+
       onDragStart={(e) => {
         e.cancelBubble = true;
         isDraggingRef.current = true;
       }}
+
+      // -----------------------------------------------------------------------
+      // Drag move
+      // -----------------------------------------------------------------------
+
       onDragMove={(e) => {
         e.cancelBubble = true;
       }}
+
+      // -----------------------------------------------------------------------
+      // Drag end
+      // -----------------------------------------------------------------------
+
       onDragEnd={handleDragEnd}
+
+      // -----------------------------------------------------------------------
+      // Transform
+      // -----------------------------------------------------------------------
+
       onTransformEnd={handleTransformEnd}
+
+      // -----------------------------------------------------------------------
+      // Mouse cursor
+      // -----------------------------------------------------------------------
+
       onMouseEnter={(e) => {
         const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = "move";
+
+        if (stage) {
+          stage.container().style.cursor = "move";
+        }
       }}
+
       onMouseLeave={(e) => {
         const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = "default";
+
+        if (stage) {
+          stage.container().style.cursor = "default";
+        }
       }}
+
+      // -----------------------------------------------------------------------
+      // Select
+      // -----------------------------------------------------------------------
+
       onClick={(e) => {
         e.cancelBubble = true;
+
         setSelectedFrameId(frameId);
         setSelectedTextId(element.id);
       }}
+
       onTap={(e) => {
         e.cancelBubble = true;
+
         setSelectedFrameId(frameId);
         setSelectedTextId(element.id);
       }}
+
+      // -----------------------------------------------------------------------
+      // Double click → edit
+      // -----------------------------------------------------------------------
+
       onDblClick={handleDblClick}
+
       onDblTap={handleDblClick}
     />
   );
