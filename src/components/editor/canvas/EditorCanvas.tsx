@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Layer, Stage, Group, Text, Transformer } from "react-konva";
 import type Konva from "konva";
-import { useCanvasStore, exportHandlerRef } from "@/store/canvasStore";
+import { useCanvasStore, exportHandlerRef, type TextElement, type ImageElement } from "@/store/canvasStore";
 import { FrameBackground } from "./nodes/FrameBackground";
 import { TextNode } from "./nodes/TextNode";
 import { ImageNode } from "./nodes/ImageNode";
