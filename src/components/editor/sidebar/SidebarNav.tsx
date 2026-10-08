@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useCanvasStore, LeftTab } from "@/store/canvasStore";
 import { LayoutTemplate, Image as ImageIcon, Type, Upload } from "lucide-react";
 
@@ -7,11 +8,11 @@ export default function SidebarNav() {
   const { activeLeftTab, setActiveLeftTab } = useCanvasStore();
 
   const navItems: { id: LeftTab; icon: React.ReactNode; label: string }[] = [
-    { id: "templates", icon: <LayoutTemplate size={20} />, label: "Templates" },
     { id: "devices", icon: <ImageIcon size={20} />, label: "Devices" },
     { id: "text", icon: <Type size={20} />, label: "Text" },
     { id: "images", icon: <Upload size={20} />, label: "Images" },
     { id: "elements", icon: <Upload size={20} />, label: "Elements" },
+    { id: "templates", icon: <LayoutTemplate size={20} />, label: "Templates" },
   ];
 
   return (
@@ -19,7 +20,7 @@ export default function SidebarNav() {
       {navItems.map((item) => {
         const isActive = activeLeftTab === item.id;
         return (
-          <button
+          <Button
             key={item.id}
             onClick={() => setActiveLeftTab(item.id)}
             className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-colors ${
@@ -31,7 +32,7 @@ export default function SidebarNav() {
           >
             {item.icon}
             <span className="text-[10px] mt-1 font-medium">{item.label}</span>
-          </button>
+          </Button>
         );
       })}
     </nav>
