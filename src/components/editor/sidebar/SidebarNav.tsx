@@ -22,9 +22,9 @@ export default function SidebarNav() {
           <button
             key={item.id}
             onClick={() => setActiveLeftTab(item.id)}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-colors cursor-pointer ${
+            className={`flex flex-col items-center justify-center w-full h-12 rounded transition-colors cursor-pointer ${
               isActive
-                ? "bg-blue-50 text-blue-600"
+                ? "bg-gray-100"
                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
             }`}
             title={item.label}
