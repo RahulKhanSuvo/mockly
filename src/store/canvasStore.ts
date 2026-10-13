@@ -569,7 +569,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   setSelectedImageId: (id) =>
     set({ selectedImageId: id, selectedTextId: null }),
 
-  moveElementUp: (frameId, elementId, type) =>
+  moveElementUp: (frameId, elementId) =>
     set((state) => {
       const frameIndex = state.frames.findIndex((f) => f.id === frameId);
       if (frameIndex === -1) return state;
