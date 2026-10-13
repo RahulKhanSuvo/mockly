@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Layer, Stage, Group, Text, Transformer } from "react-konva";
 import type Konva from "konva";
-import { useCanvasStore, exportHandlerRef, type TextElement, type ImageElement } from "@/store/canvasStore";
+import {
+  useCanvasStore,
+  exportHandlerRef,
+  type TextElement,
+  type ImageElement,
+} from "@/store/canvasStore";
 import { FrameBackground } from "./nodes/FrameBackground";
 import { TextNode } from "./nodes/TextNode";
 import { ImageNode } from "./nodes/ImageNode";
@@ -58,16 +63,15 @@ export default function EditorCanvas() {
   }, []);
 
   // ── Fit all frames centered in viewport on first load ─────────────────────
+
+  // Fit all frames centered in viewport on first load
   const hasCenteredRef = useRef(false);
+
   useEffect(() => {
-    // Only run once, after both size and frames are available
     if (hasCenteredRef.current) return;
     if (size.width === 0 || size.height === 0) return;
     if (frames.length === 0) return;
 
-    hasCenteredRef.current = true;
-
-    // Compute bounding box of all frames
     const minX = Math.min(...frames.map((f) => f.x));
     const minY = Math.min(...frames.map((f) => f.y));
     const maxX = Math.max(...frames.map((f) => f.x + f.width));
@@ -76,29 +80,42 @@ export default function EditorCanvas() {
     const contentW = maxX - minX;
     const contentH = maxY - minY;
 
-    const PADDING = 80; // px of breathing room around all frames
+    const PADDING = 80;
 
-    // Pick zoom to fit content inside viewport with padding
     const fitZoom = Math.min(
-      (size.width  - PADDING * 2) / contentW,
+      (size.width - PADDING * 2) / contentW,
       (size.height - PADDING * 2) / contentH,
       MAX_ZOOM,
     );
+
     const clampedZoom = Math.max(fitZoom, MIN_ZOOM);
 
-    // Center the bounding box in the viewport
-    const stageX = (size.width  - contentW * clampedZoom) / 2 - minX * clampedZoom;
-    const stageY = (size.height - contentH * clampedZoom) / 2 - minY * clampedZoom;
+    const stageX =
+      (size.width - contentW * clampedZoom) / 2 - minX * clampedZoom;
+
+    const stageY =
+      (size.height - contentH * clampedZoom) / 2 - minY * clampedZoom;
 
     const stage = stageRef.current;
-    if (stage) {
-      stage.scale({ x: clampedZoom, y: clampedZoom });
-      stage.position({ x: stageX, y: stageY });
-    }
-    setZoom(clampedZoom);
+
+    if (!stage) return;
+
+    hasCenteredRef.current = true;
+
+    stage.position({ x: stageX, y: stageY });
+
+    const animationFrame = requestAnimationFrame(() => {
+      setZoom(clampedZoom);
+    });
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+    };
   }, [size, frames]);
 
-  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   // ── Wire selection Transformer to the active element node ───────────────────
   // The Transformer lives in a separate, unclipped Layer so its handles are
@@ -125,13 +142,16 @@ export default function EditorCanvas() {
     };
 
     updateToolbar();
-    
+
     // Listen to changes that affect position
     const stage = stageRef.current;
     if (stage) {
       stage.on("dragmove transform wheel dragend transformend", updateToolbar);
       return () => {
-        stage.off("dragmove transform wheel dragend transformend", updateToolbar);
+        stage.off(
+          "dragmove transform wheel dragend transformend",
+          updateToolbar,
+        );
       };
     }
   }, [selectedImageId, selectedTextId, zoom]);
@@ -273,7 +293,11 @@ export default function EditorCanvas() {
   // the canvas to scroll.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      if (
+        e.code === "Space" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
         isSpaceDownRef.current = true;
         // Optionally prevent default scrolling
         if (e.target === document.body) e.preventDefault();
@@ -298,7 +322,7 @@ export default function EditorCanvas() {
     if (editingTextId) return;
     // Require spacebar to be held down for panning
     if (!isSpaceDownRef.current) return;
-    
+
     isPanningRef.current = true;
     panLastPos.current = { x: e.evt.clientX, y: e.evt.clientY };
   };
@@ -311,7 +335,7 @@ export default function EditorCanvas() {
     const dy = e.evt.clientY - panLastPos.current.y;
     stage.position({ x: stage.x() + dx, y: stage.y() + dy });
     panLastPos.current = { x: e.evt.clientX, y: e.evt.clientY };
-    
+
     // Update toolbar position when panning
     const activeId = selectedImageId || selectedTextId;
     if (activeId) {
@@ -338,16 +362,16 @@ export default function EditorCanvas() {
 
   const handleDuplicate = () => {
     const s = useCanvasStore.getState();
-    const frame = s.frames.find(f => f.id === s.selectedFrameId);
+    const frame = s.frames.find((f) => f.id === s.selectedFrameId);
     if (!frame) return;
 
     if (s.selectedTextId) {
-      const el = frame.textElements?.find(e => e.id === s.selectedTextId);
+      const el = frame.textElements?.find((e) => e.id === s.selectedTextId);
       if (el) {
         s.addTextElement(frame.id, { ...el, x: el.x + 20, y: el.y + 20 });
       }
     } else if (s.selectedImageId) {
-      const el = frame.imageElements?.find(e => e.id === s.selectedImageId);
+      const el = frame.imageElements?.find((e) => e.id === s.selectedImageId);
       if (el) {
         s.addImageElement(frame.id, { ...el, x: el.x + 20, y: el.y + 20 });
       }
@@ -366,18 +390,18 @@ export default function EditorCanvas() {
   const handleMoveUp = () => {
     const s = useCanvasStore.getState();
     if (s.selectedTextId && s.selectedFrameId) {
-      s.moveElementUp(s.selectedFrameId, s.selectedTextId, 'text');
+      s.moveElementUp(s.selectedFrameId, s.selectedTextId, "text");
     } else if (s.selectedImageId && s.selectedFrameId) {
-      s.moveElementUp(s.selectedFrameId, s.selectedImageId, 'image');
+      s.moveElementUp(s.selectedFrameId, s.selectedImageId, "image");
     }
   };
 
   const handleMoveDown = () => {
     const s = useCanvasStore.getState();
     if (s.selectedTextId && s.selectedFrameId) {
-      s.moveElementDown(s.selectedFrameId, s.selectedTextId, 'text');
+      s.moveElementDown(s.selectedFrameId, s.selectedTextId, "text");
     } else if (s.selectedImageId && s.selectedFrameId) {
-      s.moveElementDown(s.selectedFrameId, s.selectedImageId, 'image');
+      s.moveElementDown(s.selectedFrameId, s.selectedImageId, "image");
     }
   };
 
@@ -391,8 +415,6 @@ export default function EditorCanvas() {
       />
     );
   }
-
-
 
   return (
     <div
@@ -417,7 +439,9 @@ export default function EditorCanvas() {
         <Layer>
           {frames.map((frame) => {
             const isFrameSelected =
-              selectedFrameId === frame.id && !selectedTextId && !selectedImageId;
+              selectedFrameId === frame.id &&
+              !selectedTextId &&
+              !selectedImageId;
             return (
               <Group
                 key={frame.id}
@@ -456,14 +480,22 @@ export default function EditorCanvas() {
                 >
                   {(() => {
                     const allElements = [
-                      ...(frame.textElements || []).map(el => ({ type: 'text' as const, el })),
-                      ...(frame.imageElements || []).map(el => ({ type: 'image' as const, el }))
+                      ...(frame.textElements || []).map((el) => ({
+                        type: "text" as const,
+                        el,
+                      })),
+                      ...(frame.imageElements || []).map((el) => ({
+                        type: "image" as const,
+                        el,
+                      })),
                     ];
-                    
-                    allElements.sort((a, b) => (a.el.zIndex || 0) - (b.el.zIndex || 0));
+
+                    allElements.sort(
+                      (a, b) => (a.el.zIndex || 0) - (b.el.zIndex || 0),
+                    );
 
                     return allElements.map(({ type, el }) => {
-                      if (type === 'text') {
+                      if (type === "text") {
                         const textEl = el as TextElement;
                         return (
                           <TextNode
@@ -475,8 +507,12 @@ export default function EditorCanvas() {
                             frameId={frame.id}
                             onEdit={() => setEditingTextId(textEl.id)}
                             onEditEnd={() => setEditingTextId(null)}
-                            onMount={(id, node) => elementNodeRefs.current.set(id, node)}
-                            onUnmount={(id) => elementNodeRefs.current.delete(id)}
+                            onMount={(id, node) =>
+                              elementNodeRefs.current.set(id, node)
+                            }
+                            onUnmount={(id) =>
+                              elementNodeRefs.current.delete(id)
+                            }
                           />
                         );
                       } else {
@@ -487,15 +523,18 @@ export default function EditorCanvas() {
                             element={imgEl}
                             isSelected={selectedImageId === imgEl.id}
                             frameId={frame.id}
-                            onMount={(id, node) => elementNodeRefs.current.set(id, node)}
-                            onUnmount={(id) => elementNodeRefs.current.delete(id)}
+                            onMount={(id, node) =>
+                              elementNodeRefs.current.set(id, node)
+                            }
+                            onUnmount={(id) =>
+                              elementNodeRefs.current.delete(id)
+                            }
                           />
                         );
                       }
                     });
                   })()}
                 </Group>
-
               </Group>
             );
           })}
@@ -535,21 +574,21 @@ export default function EditorCanvas() {
 
       {/* Floating Toolbar */}
       {toolbarPos && (selectedImageId || selectedTextId) && (
-        <div 
+        <div
           className="absolute z-20 flex items-center gap-1 bg-white border border-neutral-200 rounded-md shadow-sm p-1"
-          style={{ 
-            left: Math.max(10, toolbarPos.x), 
+          style={{
+            left: Math.max(10, toolbarPos.x),
             top: Math.max(10, toolbarPos.y),
           }}
         >
-          <button 
+          <button
             onClick={handleDuplicate}
             className="p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-sm transition-colors"
             title="Duplicate"
           >
             <Copy size={16} />
           </button>
-          <button 
+          <button
             onClick={handleDelete}
             className="p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-sm transition-colors"
             title="Delete"
@@ -557,14 +596,14 @@ export default function EditorCanvas() {
             <Trash2 size={16} />
           </button>
           <div className="w-px h-4 bg-neutral-200 mx-1"></div>
-          <button 
+          <button
             onClick={handleMoveUp}
             className="p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-sm transition-colors"
             title="Move Forward"
           >
             <ArrowUp size={16} />
           </button>
-          <button 
+          <button
             onClick={handleMoveDown}
             className="p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-sm transition-colors"
             title="Move Backward"
