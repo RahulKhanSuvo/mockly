@@ -115,7 +115,7 @@ function CryptixPreview() {
           <br />
           Digital Assets
         </span>
-        <p className="text-[6px] text-white/50 mt-1 max-w-[130px] leading-relaxed">
+        <p className="text-[6px] text-white/50 mt-1 max-w-32.5 leading-relaxed">
           Cryptix offers a seamless, secure dashboard for managing crypto
           wealth.
         </p>
@@ -123,7 +123,7 @@ function CryptixPreview() {
           Get started now →
         </div>
       </div>
-      <div className="w-full rounded-xl bg-white/[0.04] border border-white/10 p-2 backdrop-blur-sm shadow-xl">
+      <div className="w-full rounded-xl bg-white/4 border border-white/10 p-2 backdrop-blur-sm shadow-xl">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[6px] text-white/60">Main Dashboard</span>
           <span className="text-[6px] text-emerald-400 font-mono">+18.4%</span>
@@ -343,7 +343,7 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <div
       className="group flex flex-col cursor-pointer"
-      onClick={() => router.push("/editor?type=screenshot")}
+      onClick={() => router.push("/design?type=screenshot")}
     >
       {/* Thumbnail — border uses brand-subtle token */}
       <div className="relative w-full aspect-[4/5] rounded-2xl border border-brand-subtle overflow-hidden transition-all duration-200 group-hover:shadow-lg group-hover:-translate-y-0.5">
