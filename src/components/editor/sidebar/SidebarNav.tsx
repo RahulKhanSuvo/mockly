@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useCanvasStore, LeftTab } from "@/store/canvasStore";
 import { LayoutTemplate, Image as ImageIcon, Type, Upload } from "lucide-react";
 
@@ -20,10 +19,10 @@ export default function SidebarNav() {
       {navItems.map((item) => {
         const isActive = activeLeftTab === item.id;
         return (
-          <Button
+          <button
             key={item.id}
             onClick={() => setActiveLeftTab(item.id)}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-colors cursor-pointer ${
               isActive
                 ? "bg-blue-50 text-blue-600"
                 : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
@@ -32,7 +31,7 @@ export default function SidebarNav() {
           >
             {item.icon}
             <span className="text-[10px] mt-1 font-medium">{item.label}</span>
-          </Button>
+          </button>
         );
       })}
     </nav>
