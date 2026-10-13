@@ -1,75 +1,115 @@
-import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
+import { create } from "zustand";
+import { v4 as uuidv4 } from "uuid";
 
-import { ScreenMapping } from '@/types/mockup';
+import { ScreenMapping } from "@/types/mockup";
 
 // ── Canvas-type presets ────────────────────────────────────────────────────────
 // One entry per FrameType. Defines how many frames to create and at what size.
-export type ProjectCanvasType = 'screenshot' | 'mockup' | 'graphic' | 'custom';
+export type ProjectCanvasType = "screenshot" | "mockup" | "graphic" | "custom";
 
-interface CanvasPresetFrame { name: string; width: number; height: number; type: FrameType; }
+interface CanvasPresetFrame {
+  name: string;
+  width: number;
+  height: number;
+  type: FrameType;
+}
 
-const CANVAS_PRESETS: Record<ProjectCanvasType, { frames: CanvasPresetFrame[]; gap: number; bgColor: string }> = {
+const CANVAS_PRESETS: Record<
+  ProjectCanvasType,
+  { frames: CanvasPresetFrame[]; gap: number; bgColor: string }
+> = {
   screenshot: {
-    bgColor: '#e5e5e5',
+    bgColor: "#e5e5e5",
     gap: 120,
     frames: [
-      { name: 'iPhone 6.7" · Screen 1', width: 1290, height: 2796, type: 'screenshot' },
-      { name: 'iPhone 6.7" · Screen 2', width: 1290, height: 2796, type: 'screenshot' },
-      { name: 'iPhone 6.7" · Screen 3', width: 1290, height: 2796, type: 'screenshot' },
-      { name: 'iPhone 6.7" · Screen 4', width: 1290, height: 2796, type: 'screenshot' },
-      { name: 'iPhone 6.7" · Screen 5', width: 1290, height: 2796, type: 'screenshot' },
+      {
+        name: 'iPhone 6.7" · Screen 1',
+        width: 1290,
+        height: 2796,
+        type: "screenshot",
+      },
+      {
+        name: 'iPhone 6.7" · Screen 2',
+        width: 1290,
+        height: 2796,
+        type: "screenshot",
+      },
+      {
+        name: 'iPhone 6.7" · Screen 3',
+        width: 1290,
+        height: 2796,
+        type: "screenshot",
+      },
+      {
+        name: 'iPhone 6.7" · Screen 4',
+        width: 1290,
+        height: 2796,
+        type: "screenshot",
+      },
+      {
+        name: 'iPhone 6.7" · Screen 5',
+        width: 1290,
+        height: 2796,
+        type: "screenshot",
+      },
     ],
   },
   mockup: {
-    bgColor: '#d4d4d4',
+    bgColor: "#d4d4d4",
     gap: 160,
     frames: [
-      { name: 'Mockup · Frame 1', width: 1920, height: 1080, type: 'mockup' },
-      { name: 'Mockup · Frame 2', width: 1920, height: 1080, type: 'mockup' },
-      { name: 'Mockup · Frame 3', width: 1920, height: 1080, type: 'mockup' },
+      { name: "Mockup · Frame 1", width: 1920, height: 1080, type: "mockup" },
+      { name: "Mockup · Frame 2", width: 1920, height: 1080, type: "mockup" },
+      { name: "Mockup · Frame 3", width: 1920, height: 1080, type: "mockup" },
     ],
   },
   graphic: {
-    bgColor: '#e0e0e0',
+    bgColor: "#e0e0e0",
     gap: 140,
     frames: [
-      { name: 'Banner · 1200×628', width: 1200, height: 628, type: 'graphic' },
-      { name: 'Square · 1080×1080', width: 1080, height: 1080, type: 'graphic' },
-      { name: 'Story · 1080×1920', width: 1080, height: 1920, type: 'graphic' },
+      { name: "Banner · 1200×628", width: 1200, height: 628, type: "graphic" },
+      {
+        name: "Square · 1080×1080",
+        width: 1080,
+        height: 1080,
+        type: "graphic",
+      },
+      { name: "Story · 1080×1920", width: 1080, height: 1920, type: "graphic" },
     ],
   },
   custom: {
-    bgColor: '#e8e8e8',
+    bgColor: "#e8e8e8",
     gap: 120,
     frames: [
-      { name: 'Custom · Frame 1', width: 1920, height: 1080, type: 'custom' },
+      { name: "Custom · Frame 1", width: 1920, height: 1080, type: "custom" },
     ],
   },
 };
 
-export type FrameType = 'screenshot' | 'mockup' | 'graphic' | 'custom';
-export type BackgroundType = 'solid' | 'gradient' | 'image';
-export type TextAlign = 'left' | 'center' | 'right' | 'justify';
-export type FontStyle = 'normal' | 'bold' | 'italic' | 'bold italic';
-export type TextDecoration = '' | 'underline' | 'line-through' | 'underline line-through';
-export type FontWeight = 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+export type FrameType = "screenshot" | "mockup" | "graphic" | "custom";
+export type BackgroundType = "solid" | "gradient" | "image";
+export type TextAlign = "left" | "center" | "right" | "justify";
+export type FontStyle = "normal" | "bold" | "italic" | "bold italic";
+export type TextDecoration =
+  "" | "underline" | "line-through" | "underline line-through";
+export type FontWeight =
+  "normal" | "medium" | "semibold" | "bold" | "extrabold";
 
 export interface TextElement {
   id: string;
   text: string;
-  x: number;        // relative to frame origin
+  x: number; // relative to frame origin
   y: number;
-  width: number;    // wrapping width
+  width: number; // wrapping width
   fontSize: number;
   fontFamily: string;
   fontColor: string;
   fontStyle: FontStyle;
   textDecoration?: string; // '' | 'underline' | 'line-through' | 'underline line-through'
-  fontWeight?: string;    // '400' | '500' | '600' | '700' | '800'
+  fontWeight?: string; // '400' | '500' | '600' | '700' | '800'
   align: TextAlign;
   lineHeight: number; // multiplier e.g. 1.2
-  rotation?: number;  // angle in degrees (0-360)
+  rotation?: number; // angle in degrees (0-360)
   zIndex?: number;
 }
 
@@ -106,24 +146,27 @@ export interface Frame {
   imageElements?: ImageElement[];
 }
 
-export type LeftTab = 'templates' | 'devices' | 'text' | 'images' | 'elements' | 'background';
+export type LeftTab =
+  "templates" | "devices" | "text" | "images" | "elements" | "background";
 
-export type ExportFormat = 'png' | 'jpg' | 'webp';
+export type ExportFormat = "png" | "jpg" | "webp";
 
 export interface ExportConfig {
   format: ExportFormat;
-  scale: number;   // pixel ratio multiplier (1, 2, 3)
+  scale: number; // pixel ratio multiplier (1, 2, 3)
   quality: number; // 0-1, only relevant for jpg/webp
 }
 
 // Mutable ref shared between canvas and sidebar – not reactive on purpose
-export const exportHandlerRef: { current: ((frameId: string | null) => void) | null } = { current: null };
+export const exportHandlerRef: {
+  current: ((frameId: string | null) => void) | null;
+} = { current: null };
 
 interface CanvasState {
   frames: Frame[];
   selectedFrameId: string | null;
-  selectedTextId: string | null;   // which text element is active
-  selectedImageId: string | null;  // which image element is active
+  selectedTextId: string | null; // which text element is active
+  selectedImageId: string | null; // which image element is active
   activeLeftTab: LeftTab;
   canvasBgColor: string;
   exportConfig: ExportConfig;
@@ -137,25 +180,47 @@ interface CanvasState {
   undo: () => void;
   redo: () => void;
 
-  addFrame: (frame: Omit<Frame, 'id'>) => void;
+  addFrame: (frame: Omit<Frame, "id">) => void;
   updateFrame: (id: string, updates: Partial<Frame>) => void;
   deleteFrame: (id: string) => void;
   setSelectedFrameId: (id: string | null) => void;
 
   addTextToFrame: (frameId: string) => void;
-  addTextElement: (frameId: string, element: Omit<TextElement, 'id'> | TextElement) => void;
-  updateTextElement: (frameId: string, textId: string, updates: Partial<TextElement>) => void;
+  addTextElement: (
+    frameId: string,
+    element: Omit<TextElement, "id"> | TextElement,
+  ) => void;
+  updateTextElement: (
+    frameId: string,
+    textId: string,
+    updates: Partial<TextElement>,
+  ) => void;
   deleteTextElement: (frameId: string, textId: string) => void;
   setSelectedTextId: (id: string | null) => void;
 
   addImageToFrame: (frameId: string, url: string) => void;
-  addImageElement: (frameId: string, element: Omit<ImageElement, 'id'> | ImageElement) => void;
-  updateImageElement: (frameId: string, imageId: string, updates: Partial<ImageElement>) => void;
+  addImageElement: (
+    frameId: string,
+    element: Omit<ImageElement, "id"> | ImageElement,
+  ) => void;
+  updateImageElement: (
+    frameId: string,
+    imageId: string,
+    updates: Partial<ImageElement>,
+  ) => void;
   deleteImageElement: (frameId: string, imageId: string) => void;
   setSelectedImageId: (id: string | null) => void;
 
-  moveElementUp: (frameId: string, elementId: string, type: 'text' | 'image') => void;
-  moveElementDown: (frameId: string, elementId: string, type: 'text' | 'image') => void;
+  moveElementUp: (
+    frameId: string,
+    elementId: string,
+    type: "text" | "image",
+  ) => void;
+  moveElementDown: (
+    frameId: string,
+    elementId: string,
+    type: "text" | "image",
+  ) => void;
 
   setActiveLeftTab: (tab: LeftTab) => void;
   setCanvasBgColor: (color: string) => void;
@@ -178,18 +243,68 @@ const pushHistory = (state: CanvasState): Partial<CanvasState> => {
 
 export const useCanvasStore = create<CanvasState>((set) => ({
   frames: [
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 1', x: 100,  y: 100, width: 1290, height: 2796, textElements: [], imageElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 2', x: 1510, y: 100, width: 1290, height: 2796, textElements: [], imageElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 3', x: 2920, y: 100, width: 1290, height: 2796, textElements: [], imageElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 4', x: 4330, y: 100, width: 1290, height: 2796, textElements: [], imageElements: [] },
-    { id: uuidv4(), type: 'screenshot', name: 'iPhone 6.7" · Screen 5', x: 5740, y: 100, width: 1290, height: 2796, textElements: [], imageElements: [] },
+    {
+      id: uuidv4(),
+      type: "screenshot",
+      name: 'iPhone 6.7" · Screen 1',
+      x: 100,
+      y: 100,
+      width: 1290,
+      height: 2796,
+      textElements: [],
+      imageElements: [],
+    },
+    {
+      id: uuidv4(),
+      type: "screenshot",
+      name: 'iPhone 6.7" · Screen 2',
+      x: 1510,
+      y: 100,
+      width: 1290,
+      height: 2796,
+      textElements: [],
+      imageElements: [],
+    },
+    {
+      id: uuidv4(),
+      type: "screenshot",
+      name: 'iPhone 6.7" · Screen 3',
+      x: 2920,
+      y: 100,
+      width: 1290,
+      height: 2796,
+      textElements: [],
+      imageElements: [],
+    },
+    {
+      id: uuidv4(),
+      type: "screenshot",
+      name: 'iPhone 6.7" · Screen 4',
+      x: 4330,
+      y: 100,
+      width: 1290,
+      height: 2796,
+      textElements: [],
+      imageElements: [],
+    },
+    {
+      id: uuidv4(),
+      type: "screenshot",
+      name: 'iPhone 6.7" · Screen 5',
+      x: 5740,
+      y: 100,
+      width: 1290,
+      height: 2796,
+      textElements: [],
+      imageElements: [],
+    },
   ],
   selectedFrameId: null,
   selectedTextId: null,
   selectedImageId: null,
-  activeLeftTab: 'templates',
-  canvasBgColor: '#e5e5e5',
-  exportConfig: { format: 'png', scale: 2, quality: 1 },
+  activeLeftTab: "templates",
+  canvasBgColor: "#e5e5e5",
+  exportConfig: { format: "png", scale: 2, quality: 1 },
 
   past: [],
   future: [],
@@ -239,7 +354,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     set((state) => ({
       ...pushHistory(state),
       frames: state.frames.map((frame) =>
-        frame.id === id ? { ...frame, ...updates } : frame
+        frame.id === id ? { ...frame, ...updates } : frame,
       ),
     })),
 
@@ -247,12 +362,16 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     set((state) => ({
       ...pushHistory(state),
       frames: state.frames.filter((frame) => frame.id !== id),
-      selectedFrameId: state.selectedFrameId === id ? null : state.selectedFrameId,
-      selectedTextId: state.selectedFrameId === id ? null : state.selectedTextId,
-      selectedImageId: state.selectedFrameId === id ? null : state.selectedImageId,
+      selectedFrameId:
+        state.selectedFrameId === id ? null : state.selectedFrameId,
+      selectedTextId:
+        state.selectedFrameId === id ? null : state.selectedTextId,
+      selectedImageId:
+        state.selectedFrameId === id ? null : state.selectedImageId,
     })),
 
-  setSelectedFrameId: (id) => set({ selectedFrameId: id, selectedTextId: null }),
+  setSelectedFrameId: (id) =>
+    set({ selectedFrameId: id, selectedTextId: null }),
 
   // ── Text element actions ──────────────────────────────────────────────────
 
@@ -263,15 +382,15 @@ export const useCanvasStore = create<CanvasState>((set) => ({
 
       const newText: TextElement = {
         id: uuidv4(),
-        text: 'Add text',
+        text: "Add text",
         x: frame.width / 2 - 200,
         y: frame.height / 2 - 40,
         width: 400,
         fontSize: 80,
-        fontFamily: 'Inter',
-        fontColor: '#000000',
-        fontStyle: 'bold',
-        align: 'center',
+        fontFamily: "Inter",
+        fontColor: "#000000",
+        fontStyle: "bold",
+        align: "center",
         lineHeight: 1.2,
         zIndex: Date.now(),
       };
@@ -281,7 +400,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
         frames: state.frames.map((f) =>
           f.id === frameId
             ? { ...f, textElements: [...(f.textElements ?? []), newText] }
-            : f
+            : f,
         ),
         selectedTextId: newText.id,
         selectedFrameId: frameId,
@@ -304,7 +423,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
         frames: state.frames.map((f) =>
           f.id === frameId
             ? { ...f, textElements: [...(f.textElements ?? []), newText] }
-            : f
+            : f,
         ),
         selectedTextId: newText.id,
         selectedFrameId: frameId,
@@ -319,10 +438,10 @@ export const useCanvasStore = create<CanvasState>((set) => ({
           ? {
               ...frame,
               textElements: (frame.textElements ?? []).map((t) =>
-                t.id === textId ? { ...t, ...updates } : t
+                t.id === textId ? { ...t, ...updates } : t,
               ),
             }
-          : frame
+          : frame,
       ),
     })),
 
@@ -333,9 +452,11 @@ export const useCanvasStore = create<CanvasState>((set) => ({
         frame.id === frameId
           ? {
               ...frame,
-              textElements: (frame.textElements ?? []).filter((t) => t.id !== textId),
+              textElements: (frame.textElements ?? []).filter(
+                (t) => t.id !== textId,
+              ),
             }
-          : frame
+          : frame,
       ),
       selectedTextId: null,
     })),
@@ -407,7 +528,9 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       if (fIndex === -1) return state;
 
       const frame = state.frames[fIndex];
-      const iIndex = (frame.imageElements || []).findIndex((i) => i.id === imageId);
+      const iIndex = (frame.imageElements || []).findIndex(
+        (i) => i.id === imageId,
+      );
       if (iIndex === -1) return state;
 
       const newImages = [...(frame.imageElements || [])];
@@ -428,7 +551,9 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       if (fIndex === -1) return state;
 
       const frame = state.frames[fIndex];
-      const newImages = (frame.imageElements || []).filter((i) => i.id !== imageId);
+      const newImages = (frame.imageElements || []).filter(
+        (i) => i.id !== imageId,
+      );
 
       const newFrames = [...state.frames];
       newFrames[fIndex] = { ...frame, imageElements: newImages };
@@ -436,11 +561,13 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       return {
         ...pushHistory(state),
         frames: newFrames,
-        selectedImageId: state.selectedImageId === imageId ? null : state.selectedImageId,
+        selectedImageId:
+          state.selectedImageId === imageId ? null : state.selectedImageId,
       };
     }),
 
-  setSelectedImageId: (id) => set({ selectedImageId: id, selectedTextId: null }),
+  setSelectedImageId: (id) =>
+    set({ selectedImageId: id, selectedTextId: null }),
 
   moveElementUp: (frameId, elementId, type) =>
     set((state) => {
@@ -449,12 +576,18 @@ export const useCanvasStore = create<CanvasState>((set) => ({
 
       const frame = state.frames[frameIndex];
       const allElements = [
-        ...(frame.textElements || []).map(e => ({ ...e, _type: 'text' as const })),
-        ...(frame.imageElements || []).map(e => ({ ...e, _type: 'image' as const }))
+        ...(frame.textElements || []).map((e) => ({
+          ...e,
+          _type: "text" as const,
+        })),
+        ...(frame.imageElements || []).map((e) => ({
+          ...e,
+          _type: "image" as const,
+        })),
       ];
-      
+
       allElements.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-      
+
       const elIndex = allElements.findIndex((el) => el.id === elementId);
       if (elIndex === -1 || elIndex === allElements.length - 1) return state;
 
@@ -466,10 +599,10 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       // Reassign zIndex
       const newTextElements: TextElement[] = [];
       const newImageElements: ImageElement[] = [];
-      
+
       allElements.forEach((el, idx) => {
         const { _type, ...rest } = el;
-        if (_type === 'text') {
+        if (_type === "text") {
           newTextElements.push({ ...rest, zIndex: idx } as TextElement);
         } else {
           newImageElements.push({ ...rest, zIndex: idx } as ImageElement);
@@ -477,7 +610,11 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       });
 
       const newFrames = [...state.frames];
-      newFrames[frameIndex] = { ...frame, textElements: newTextElements, imageElements: newImageElements };
+      newFrames[frameIndex] = {
+        ...frame,
+        textElements: newTextElements,
+        imageElements: newImageElements,
+      };
 
       return {
         ...pushHistory(state),
@@ -492,12 +629,18 @@ export const useCanvasStore = create<CanvasState>((set) => ({
 
       const frame = state.frames[frameIndex];
       const allElements = [
-        ...(frame.textElements || []).map(e => ({ ...e, _type: 'text' as const })),
-        ...(frame.imageElements || []).map(e => ({ ...e, _type: 'image' as const }))
+        ...(frame.textElements || []).map((e) => ({
+          ...e,
+          _type: "text" as const,
+        })),
+        ...(frame.imageElements || []).map((e) => ({
+          ...e,
+          _type: "image" as const,
+        })),
       ];
-      
+
       allElements.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-      
+
       const elIndex = allElements.findIndex((el) => el.id === elementId);
       if (elIndex <= 0) return state;
 
@@ -509,10 +652,10 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       // Reassign zIndex
       const newTextElements: TextElement[] = [];
       const newImageElements: ImageElement[] = [];
-      
+
       allElements.forEach((el, idx) => {
         const { _type, ...rest } = el;
-        if (_type === 'text') {
+        if (_type === "text") {
           newTextElements.push({ ...rest, zIndex: idx } as TextElement);
         } else {
           newImageElements.push({ ...rest, zIndex: idx } as ImageElement);
@@ -520,7 +663,11 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       });
 
       const newFrames = [...state.frames];
-      newFrames[frameIndex] = { ...frame, textElements: newTextElements, imageElements: newImageElements };
+      newFrames[frameIndex] = {
+        ...frame,
+        textElements: newTextElements,
+        imageElements: newImageElements,
+      };
 
       return {
         ...pushHistory(state),
@@ -537,7 +684,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     set((state) => ({
       ...pushHistory(state),
       frames: state.frames.map((f) =>
-        f.id === frameId ? { ...f, screenshotUrl } : f
+        f.id === frameId ? { ...f, screenshotUrl } : f,
       ),
     })),
 
